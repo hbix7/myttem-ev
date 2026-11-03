@@ -1,0 +1,2 @@
+import { AppShell, PageHeader } from '@/components/shared'
+export default function OutOfScope(){return <AppShell crumb="Change Requests"><PageHeader title="Out of scope / Change Request" crumb="Change Requests"/><div className="card"><p className="page-intro">High-voltage work, manufacturer compliance documents, payment matching, live SQL Accounting links, subcontractor margins, online payments and in-app chat are marked for a future change request.</p></div></AppShell>}

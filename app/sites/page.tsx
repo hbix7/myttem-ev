@@ -1,0 +1,2 @@
+import { EntityScreen } from '@/components/admin-screens'
+export default function Sites(){return <EntityScreen title="Sites" crumb="Customers > Sites" singular="Site" rows={[{Site:'Sunway Pyramid',Customer:'Sunway Retail Sdn Bhd',Address:'Bandar Sunway',Status:'Active'},{Site:'Klang Warehouse',Customer:'Klang Logistics Hub Sdn Bhd',Address:'Port Klang',Status:'Active'}]} columns={['Site','Customer','Address','Status']} helper="Manage customer locations and service addresses."/>}

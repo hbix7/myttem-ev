@@ -1,0 +1,2 @@
+import { EntityScreen } from '@/components/admin-screens'
+export default function PortalUsers(){return <EntityScreen title="Portal Users" crumb="Admin > Portal Users" singular="portal user" rows={[{Login:'nurul@sunway.com.my',Customer:'Sunway Retail Sdn Bhd',Scope:'All customer jobs',Status:'Active'},{Login:'facilities@klanglogistics.com',Customer:'Klang Logistics Hub Sdn Bhd',Scope:'All customer jobs',Status:'Active'}]} columns={['Login','Customer','Scope','Status']} helper="Control view-only customer portal access and review activity."/>}

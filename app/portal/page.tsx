@@ -1,0 +1,5 @@
+'use client'
+import Link from 'next/link'
+import { useStore } from '@/lib/store'
+import { StatusPill } from '@/components/shared'
+export default function Portal(){const {jobs,customers}=useStore();const customer=customers.find(c=>c.isCommercial);const mine=jobs.filter(j=>j.customerId===customer?.id);return <main className="portal-shell"><header className="portal-top"><strong>Myttem Portal</strong><span>{customer?.name}</span><button className="button secondary">Log out</button></header><section className="portal-content"><p className="eyebrow">Customer portal</p><h1>My jobs</h1><p className="page-intro">View service progress, history and completed job sheets.</p><div className="table-wrap"><table><thead><tr><th>Job no.</th><th>Site</th><th>Type</th><th>Status</th><th>Scheduled</th></tr></thead><tbody>{mine.map(j=><tr key={j.id}><td><Link href={`/jobs/${j.id}`}>{j.jobNo}</Link></td><td>Customer site</td><td>Service</td><td><StatusPill>{j.status}</StatusPill></td><td>{j.scheduledAt ? new Date(j.scheduledAt).toLocaleDateString('en-MY') : 'To be scheduled'}</td></tr>)}</tbody></table></div></section></main>}

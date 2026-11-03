@@ -1,0 +1,2 @@
+import { EntityScreen } from '@/components/admin-screens'
+export default function Assets(){return <EntityScreen title="Assets" crumb="Customers > Assets" singular="Asset" rows={[{Asset:'EV charger',Site:'Sunway Pyramid',Serial:'UPE-0001',Status:'Active'},{Asset:'Distribution board',Site:'Klang Warehouse',Serial:'UPE-0002',Status:'Active'}]} columns={['Asset','Site','Serial','Status']} helper="Track equipment and serviceable assets across customer sites."/>}

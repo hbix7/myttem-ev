@@ -1,0 +1,2 @@
+import { EntityScreen } from '@/components/admin-screens'
+export default function Items(){return <EntityScreen title="Item Master" crumb="Master Data > Items" singular="Item" rows={[{Code:'MCB-001',Description:'MCB replacement 20A',Type:'Part',Standard:'RM 45',Premium:'RM 55',EV:'RM 60'},{Code:'LAB-001',Description:'Technician labour hour',Type:'Service',Standard:'RM 80',Premium:'RM 110',EV:'RM 130'}]} columns={['Code','Description','Type','Standard','Premium','EV']} helper="Maintain parts and service pricing across rate cards."/>}
