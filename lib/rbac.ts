@@ -7,4 +7,25 @@ export function can(role: Role, entity: string, action: string) {
   if (role === 'owner') return ['job','customer','site','asset','quotation','invoice','report','dashboard','document'].includes(entity) && ['R','A'].includes(action)
   return true
 }
-export const nav = [{label:'Dashboard',href:'/dashboard',roles:['sysadmin','admin','owner']},{label:'Jobs',href:'/jobs',roles:['sysadmin','admin','owner','technician','portal']},{label:'Scheduler',href:'/scheduler',roles:['sysadmin','admin','owner']},{label:'Pending intake',href:'/intake',roles:['sysadmin','admin']},{label:'Quotations',href:'/quotations',roles:['sysadmin','admin','owner']},{label:'Invoices',href:'/invoices',roles:['sysadmin','admin','owner']},{label:'EV deadlines',href:'/ev/deadlines',roles:['sysadmin','admin','owner']},{label:'EV chargebacks',href:'/ev/chargebacks',roles:['sysadmin','admin','owner']},{label:'EV conversion',href:'/ev/conversion',roles:['sysadmin','admin','owner']},{label:'Document templates',href:'/documents/templates',roles:['sysadmin','admin','owner']},{label:'Generated documents',href:'/documents/generated',roles:['sysadmin','admin','owner']},{label:'Customers',href:'/customers',roles:['sysadmin','admin','owner','technician','portal']},{label:'Master Data',href:'/master-data',roles:['sysadmin','admin','owner']},{label:'Communication',href:'/communication/notifications',roles:['sysadmin','admin']},{label:'Reports',href:'/reports',roles:['sysadmin','admin','owner']},{label:'Sync Conflicts',href:'/sync-conflicts',roles:['sysadmin','admin']},{label:'SQL Accounting',href:'/integrations/sql',roles:['admin']},{label:'SLA',href:'/sla',roles:['sysadmin','admin']},{label:'Portal Users',href:'/portal-users',roles:['sysadmin','admin']},{label:'Settings',href:'/settings',roles:['sysadmin','admin']} ]
+export const nav = [
+  {section:'Overview',label:'Dashboard',href:'/dashboard',roles:['sysadmin','admin','owner']},
+  {section:'Work Management',label:'Jobs',href:'/jobs',roles:['sysadmin','admin','owner','technician','portal']},
+  {section:'Work Management',label:'Scheduler',href:'/scheduler',roles:['sysadmin','admin','owner']},
+  {section:'Work Management',label:'Pending intake',href:'/intake',roles:['sysadmin','admin']},
+  {section:'Commercial',label:'Quotations',href:'/quotations',roles:['sysadmin','admin','owner']},
+  {section:'Commercial',label:'Invoices',href:'/invoices',roles:['sysadmin','admin','owner']},
+  {section:'EV Programme',label:'EV deadlines',href:'/ev/deadlines',roles:['sysadmin','admin','owner']},
+  {section:'EV Programme',label:'EV chargebacks',href:'/ev/chargebacks',roles:['sysadmin','admin','owner']},
+  {section:'EV Programme',label:'EV conversion',href:'/ev/conversion',roles:['sysadmin','admin','owner']},
+  {section:'Documents',label:'Document templates',href:'/documents/templates',roles:['sysadmin','admin','owner']},
+  {section:'Documents',label:'Generated documents',href:'/documents/generated',roles:['sysadmin','admin','owner']},
+  {section:'Directory',label:'Customers',href:'/customers',roles:['sysadmin','admin','owner','technician','portal']},
+  {section:'Directory',label:'Master Data',href:'/master-data',roles:['sysadmin','admin','owner']},
+  {section:'Communication',label:'Communication',href:'/communication/notifications',roles:['sysadmin','admin']},
+  {section:'Insights',label:'Reports',href:'/reports',roles:['sysadmin','admin','owner']},
+  {section:'Administration',label:'Sync Conflicts',href:'/sync-conflicts',roles:['sysadmin','admin']},
+  {section:'Administration',label:'SQL Accounting',href:'/integrations/sql',roles:['admin']},
+  {section:'Administration',label:'SLA',href:'/sla',roles:['sysadmin','admin']},
+  {section:'Administration',label:'Portal Users',href:'/portal-users',roles:['sysadmin','admin']},
+  {section:'Administration',label:'Settings',href:'/settings',roles:['sysadmin','admin']},
+]
