@@ -16,7 +16,12 @@ export interface Job { id:Id; jobNo:string; subject:string; customerId:Id; siteI
 export interface JobHistory { id:Id; jobId:Id; userId:Id; event:string; fromStatus?:JobStatus; toStatus?:JobStatus; comment?:string; at:string }
 export interface Attachment { id:Id; jobId:Id; kind:'photo'|'signature'|'chop'|'other'; name:string; dataUrl?:string; at:string }
 export interface Deadline { id:Id; jobId:Id; day:number; label:string; dueAt:string; doneAt?:string }
-export interface Notification { id:Id; jobId:Id; channel:'Email'|'WhatsApp'; subject:string; at:string }
+export type NotificationStatus = 'Queued'|'Sent'|'Fallback sent'|'Failed'
+export interface Notification { id:Id; jobId:Id; channel:'Email'|'WhatsApp'; subject:string; at:string; event?:string; status?:NotificationStatus; fallbackUsed?:boolean }
+export interface CustomerReply { id:Id; jobId:Id; message:string; at:string; responded:boolean; note?:string }
+export interface UsageCounter { month:string; whatsapp:number; email:number }
+export interface NotificationResult { notification:Notification; toast:string }
+
 export interface SyncQueueEntry { id:Id; jobId:Id; action:'start'|'checklist'|'photo'|'signature'|'chop'|'end'|'submit'; payload?:Record<string,string>; at:string }
 export interface SyncConflict { id:Id; jobId:Id; detectedAt:string; fields:string[]; status:'Unresolved'|'Resolved'; deviceValues:Record<string,string>; serverValues:Record<string,string> }
 export interface GeneratedDocument { id:Id; jobId:Id; docType:'Job Sheet'|'Quotation'|'Invoice'; createdAt:string; status:'Generated'|'Sent' }
