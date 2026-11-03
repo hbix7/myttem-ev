@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export default async function JobDetail({params}:{params:Promise<{id:string}>}){const {id}=await params;return <main className="placeholder-page"><div className="placeholder-card"><p className="eyebrow">Jobs / Detail</p><h1>Job detail</h1><p className="mono">{id}</p><p>This job detail screen will be added in the next build step.</p><Link href="/jobs" className="button primary">Back to Jobs</Link></div></main>}
