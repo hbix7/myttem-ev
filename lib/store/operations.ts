@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { useStore } from '@/lib/store'
-import { useEvStore } from '@/lib/store/ev'
+import { evOnScheduled } from '@/lib/ev'
 import { LOCKED, checkPlacement, dayOf, findTechForSlot, fmtDate, stamp, time12to24, timeOf, type TechAvailability, type Violation } from '@/lib/scheduling'
 import { getNow } from '@/lib/clock'
 
@@ -51,17 +51,14 @@ if(!isOnline())return {ok:false,reason:'offline',message:'No connection. Availab
 set(s=>{const a=s.techAvailability[technicianId];if(!a)return s;const off=a.daysOff.includes(date);return {techAvailability:{...s.techAvailability,[technicianId]:{...a,daysOff:off?a.daysOff.filter(d=>d!==date):[...a.daysOff,date]}}}})
 return {ok:true,overridden:false}},
 selfServiceBook:(token,date,time12)=>{
-const ev=useEvStore.getState();const booking=ev.bookings.find(b=>b.token===token)
-if(!booking)return {ok:false,reason:'missing',message:'This booking link is not active.'}
-const core=useStore.getState();const type=core.jobTypes.find(t=>t.id==='jt4');const time=time12to24(time12)
+const core=useStore.getState();const parent=core.jobs.find(j=>j.ev?.bookingToken===token);const installId=parent?.ev?.installJobId
+if(!parent||!installId)return {ok:false,reason:'missing',message:'This booking link is not active.'}
+const type=core.jobTypes.find(t=>t.id==='jt4');const time=time12to24(time12)
 const {tech}=findTechForSlot({technicians:technicians(),date,time,type,jobs:core.jobs,jobTypes:core.jobTypes,capacity:core.settings.techDailyCapacity,availability:get().techAvailability})
 if(!tech)return {ok:false,reason:'unavailable',message:'That time is no longer available. Please choose another slot.'}
-const cust=core.customers.find(c=>c.name.toLowerCase()===booking.customer.toLowerCase())
-const jobId=core.createJob({subject:`EV charger installation: ${booking.customer}`,customerId:cust?.id||'ev1',jobTypeId:'jt4',channel:'Portal',principalId:'p3',technicianId:tech.id,scheduledAt:stamp(date,time)})
-core.updateJob(jobId,{selfService:true})
-note(jobId,'Customer self-service booking',`Booked via link for ${fmtDate(date)} ${time}. Limits applied, no override.`)
-ev.confirmBooking(token,date,time12)
-useEvStore.setState(s=>({bookings:s.bookings.map(b=>b.token===token?{...b,technician:tech.name,installationJobId:jobId}:b)}))
+core.updateJob(installId,{technicianId:tech.id,scheduledAt:stamp(date,time),status:'Assigned',selfService:true})
+note(installId,'Customer self-service booking',`Booked via link for ${fmtDate(date)} ${time}. Limits applied, no override.`)
+evOnScheduled(installId)
 return {ok:true,overridden:false}},
 confirmLead:(id,fields)=>{const lead=get().leads.find(l=>l.id===id);if(!lead)return;const merged={...lead,...fields};const core=useStore.getState();const customer=core.customers.find(c=>c.name.toLowerCase()===merged.customerName.toLowerCase());const jobId=core.createJob({subject:`EV Assessment — ${merged.vehicleModel}`,customerId:customer?.id||'c1',channel:'WhatsApp',remarks:merged.raw,principalId:'p3',scheduledAt:merged.preferredDate?`2026-11-${merged.preferredDate.slice(0,2).padStart(2,'0')}T09:00:00+08:00`:undefined});set(s=>({leads:s.leads.map(l=>l.id===id?{...l,...merged,status:'Confirmed',jobId}:l)}));return jobId},discardLead:id=>set(s=>({leads:s.leads.map(l=>l.id===id?{...l,status:'Discarded'}:l)}))}),{name:'myttem-operations',version:2,migrate:()=>({}) as never}))
 export type {Lead, Availability}

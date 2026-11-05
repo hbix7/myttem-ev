@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useHydrated } from '@/components/shared'
 import { useStore } from '@/lib/store'
-import { useEvStore } from '@/lib/store/ev'
 import { useOperationsStore } from '@/lib/store/operations'
 import { addDays, findTechForSlot, fmtDate, time12to24 } from '@/lib/scheduling'
 
@@ -13,8 +12,12 @@ const FIRST_DAY = '2026-11-04'
 export default function BookingPage() {
   const { token } = useParams<{ token: string }>()
   const hydrated = useHydrated()
-  const booking = useEvStore(s => s.bookings.find(b => b.token === token))
   const jobs = useStore(s => s.jobs)
+  const customers = useStore(s => s.customers)
+  const principals = useStore(s => s.principals)
+  const parent = jobs.find(j => j.ev?.bookingToken === token)
+  const installJob = jobs.find(j => j.id === parent?.ev?.installJobId)
+  const booking = parent && installJob ? { jobNo: parent.jobNo, customer: customers.find(c => c.id === parent.customerId)?.name || '', principal: principals.find(p => p.id === parent.principalId)?.name || '', status: installJob.scheduledAt ? 'Confirmed' : 'Link sent', date: installJob.scheduledAt?.slice(0, 10), time: installJob.scheduledAt ? new Date(installJob.scheduledAt).toLocaleTimeString('en-MY', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' }).toUpperCase() : '' } : undefined
   const users = useStore(s => s.users)
   const jobTypes = useStore(s => s.jobTypes)
   const capacity = useStore(s => s.settings.techDailyCapacity)
