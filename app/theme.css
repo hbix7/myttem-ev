@@ -1,0 +1,104 @@
+/* Single source of truth for colour, radius, shadow and status tones. Light and dark share the same token names. */
+:root {
+  --background: #fafafa;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --muted: #f4f4f5;
+  --muted-foreground: #6b6b73;
+  --border: #e5e5e5;
+  --input: #d9d9de;
+  --primary: #111111;
+  --primary-foreground: #fafafa;
+  --brand: #2457d6;
+  --brand-soft: #e8eefc;
+  --ring: #2457d6;
+  --hover: #f4f4f5;
+  --active: #efeff1;
+  --overlay: rgba(10, 10, 12, 0.45);
+
+  --radius: 0.5rem;
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+
+  --tone-slate: #64748b;
+  --tone-blue: #2563eb;
+  --tone-amber: #d97706;
+  --tone-green: #16a34a;
+  --tone-violet: #7c3aed;
+  --tone-grey: #71717a;
+  --tone-red: #dc2626;
+  --tone-teal: #0d9488;
+  --tone-orange: #ea580c;
+
+  --sidebar-width: 264px;
+  --sidebar-width-collapsed: 72px;
+
+  /* legacy aliases used by older screens */
+  --surface: var(--card);
+  --line: var(--border);
+  --accent: var(--brand);
+  --text: var(--foreground);
+}
+
+.dark {
+  --background: #0b0b0d;
+  --foreground: #f4f4f5;
+  --card: #141417;
+  --card-foreground: #f4f4f5;
+  --muted: #1c1c20;
+  --muted-foreground: #a1a1aa;
+  --border: #2a2a30;
+  --input: #3a3a42;
+  --primary: #f4f4f5;
+  --primary-foreground: #111111;
+  --brand: #6b93ff;
+  --brand-soft: #1b2644;
+  --ring: #6b93ff;
+  --hover: #1c1c20;
+  --active: #25252b;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  --tone-slate: #94a3b8;
+  --tone-blue: #60a5fa;
+  --tone-amber: #fbbf24;
+  --tone-green: #4ade80;
+  --tone-violet: #a78bfa;
+  --tone-grey: #a1a1aa;
+  --tone-red: #f87171;
+  --tone-teal: #2dd4bf;
+  --tone-orange: #fb923c;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--foreground);
+  --color-accent: var(--hover);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--tone-red);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-card);
+  --radius-xl: calc(var(--radius-card) + 4px);
+}
+
+td .mono, th, td.num { white-space: nowrap; }
