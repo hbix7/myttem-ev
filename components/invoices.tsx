@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Check, FileText, Send, Wallet } from 'lucide-react'
+import { Check, Download, FileText, Send, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell, EmptyState, FilterBar, PageHeader, StatusPill, useHydrated } from '@/components/shared'
 import { Price } from '@/components/commercial'
@@ -10,6 +10,7 @@ import { useCommercialStore, type Invoice, type InvoiceStatus } from '@/lib/stor
 import { useEvStore } from '@/lib/store/ev'
 import { sendNotification } from '@/lib/store/comms'
 import { can } from '@/lib/rbac'
+import { downloadInvoicePdf, E_INVOICE_NOTE } from '@/lib/invoicing'
 
 const tabs: ('All' | InvoiceStatus)[] = ['All', 'Draft', 'Sent for sign-off', 'Signed off', 'Paid', 'Invoiced']
 const steps: InvoiceStatus[] = ['Draft', 'Sent for sign-off', 'Signed off', 'Paid', 'Invoiced']
@@ -23,19 +24,20 @@ function ExportChip({ invoice }: { invoice: Invoice }) {
 export function InvoiceList() {
   const hydrated = useHydrated()
   const invoices = useCommercialStore(s => s.invoices)
+  const role = useStore(s => s.users.find(u => u.id === s.currentUserId)!.role)
   const [tab, setTab] = useState<(typeof tabs)[number]>('All')
   const [search, setSearch] = useState('')
   const rows = useMemo(() => invoices.filter(i => (tab === 'All' || i.status === tab) && `${i.invoiceNo} ${i.jobNo} ${i.customer}`.toLowerCase().includes(search.toLowerCase())), [invoices, tab, search])
   if (!hydrated) return null
   return (
     <AppShell crumb="Invoices">
-      <PageHeader title="Invoices" />
+      <PageHeader title="Invoices" subtitle={`Amounts shown incl. SST. ${E_INVOICE_NOTE}`} action={can(role, 'invoice', 'C') ? <Link className="button primary" href="/invoices/new">+ Raise invoice</Link> : undefined} />
       <div className="content">
         <div className="tabs">{tabs.map(t => <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>)}</div>
         <FilterBar search={search} onSearch={setSearch} placeholder="Search invoice, job or customer..." />
         <div className="table-card">
           <table>
-            <thead><tr><th>Invoice</th><th>Job</th><th>Customer</th><th>Total incl SST</th><th>Status</th><th>SQL Accounting</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Job</th><th>Customer</th><th>Total (incl. SST)</th><th>Status</th><th>SQL Accounting</th></tr></thead>
             <tbody>
               {rows.map(i => (
                 <tr key={i.id}>
@@ -101,7 +103,7 @@ export function InvoiceDetail({ id }: { id: string }) {
           <section className="card">
             <div className="card-header"><div><h2>Line items</h2><p className="muted">Amounts in RM, SST {Math.round(settings.sstRate * 100)}%</p></div><StatusPill>{invoice.status}</StatusPill></div>
             <table>
-              <thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Amount</th></tr></thead>
+              <thead><tr><th>Item</th><th>Qty</th><th>Unit price (excl. SST)</th><th>Amount (excl. SST)</th></tr></thead>
               <tbody>
                 {invoice.lines.map(l => {
                   const item = items.find(x => x.id === l.itemId)
@@ -109,15 +111,16 @@ export function InvoiceDetail({ id }: { id: string }) {
                 })}
               </tbody>
               <tfoot>
-                <tr><td colSpan={3}>Subtotal</td><td><Price amount={invoice.subtotal} /></td></tr>
-                <tr><td colSpan={3}>SST</td><td><Price amount={invoice.sst} /></td></tr>
-                <tr><td colSpan={3}><strong>Total</strong></td><td><strong><Price amount={invoice.total} /></strong></td></tr>
+                <tr><td colSpan={3}>Subtotal (excl. SST)</td><td><Price amount={invoice.subtotal} /></td></tr>
+                <tr><td colSpan={3}>SST {Math.round(settings.sstRate * 100)}%</td><td><Price amount={invoice.sst} /></td></tr>
+                <tr><td colSpan={3}><strong>Total (incl. SST)</strong></td><td><strong><Price amount={invoice.total} /></strong></td></tr>
               </tfoot>
             </table>
           </section>
           <aside className="card">
             <h2>Next step</h2>
-            <p className="muted">Invoices are exported to SQL Accounting in batches. The accounting system stays the source of truth for e-Invoice submission.</p>
+            <button className="button secondary full" onClick={() => downloadInvoicePdf(invoice, items, settings.sstRate)}><Download size={15} />Download PDF</button>
+            <p className="muted">Invoices are exported to SQL Accounting in batches. {E_INVOICE_NOTE}</p>
             <div className="stack">
               <div className="approval-card"><strong>SQL Accounting</strong><ExportChip invoice={invoice} /></div>
               {invoice.signedBy && <div className="approval-card"><strong>Signed off by {invoice.signedBy}</strong><small>{new Date(invoice.signedAt!).toLocaleString('en-MY')}</small></div>}

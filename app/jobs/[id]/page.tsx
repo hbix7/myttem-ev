@@ -39,12 +39,13 @@ export default function JobDetail() {
   const canAct = can(current.role, 'job', 'U') && current.role === 'admin'
   const history = store.history.filter(h => h.jobId === job.id).sort((a, b) => b.at.localeCompare(a.at))
   const notifications = store.notifications.filter(n => n.jobId === job.id).sort((a, b) => b.at.localeCompare(a.at))
-  const jobQuotes = quotes.filter(q => q.jobId === job.id)
+  const isEv = !!type?.isEv
+  const jobQuotes = isEv ? quotes.filter(q => q.jobId === job.id) : []
   const jobInvoices = invoices.filter(i => i.jobId === job.id)
   const state = slaState(job, type)
   const stepIndex = progress.indexOf(job.status)
-  const isEv = !!type?.isEv
-  const visibleTabs = current.role === 'portal' ? jobTabs.filter(t => ['overview', 'quotation'].includes(t.id)) : jobTabs
+  const baseTabs = current.role === 'portal' ? jobTabs.filter(t => ['overview', 'quotation'].includes(t.id)) : jobTabs
+  const visibleTabs = isEv ? baseTabs : baseTabs.map(t => (t.id === 'quotation' ? { ...t, label: 'Invoice' } : t))
 
   const assign = () => {
     if (!tech) { toast.error('Select a technician'); return }
@@ -89,7 +90,9 @@ export default function JobDetail() {
                   {store.users.filter(u => u.role === 'technician').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
                 <button className="button secondary" onClick={assign}>Assign</button>
-                {job.status === 'Completed' && <button className="button primary" onClick={() => { store.raiseInvoice(job.id, comment); toast.success('Invoice raised'); setComment('') }}>Raise invoice</button>}
+                {job.status === 'Completed' && (isEv
+                  ? <button className="button primary" onClick={() => { store.raiseInvoice(job.id, comment); toast.success('Invoice raised'); setComment('') }}>Raise invoice</button>
+                  : <Link className="button primary" href={`/invoices/new?jobId=${job.id}`}>Raise invoice</Link>)}
                 {job.status === 'Invoiced' && <button className="button primary" onClick={() => { store.closeJob(job.id, comment); toast.success('Job closed'); setComment('') }}>Close job</button>}
                 {!['Closed', 'Invoiced'].includes(job.status) && <button className="button secondary" onClick={hold}>{job.holdSince ? 'Resume job' : 'Put on hold'}</button>}
               </div>
@@ -150,8 +153,9 @@ export default function JobDetail() {
 
           {tab === 'quotation' && (
             <section className="content-card">
-              <h2>Quotation and invoice</h2>
-              {jobQuotes.length + jobInvoices.length === 0 && <EmptyState title="Nothing raised for this job" helper="Quotations and invoices linked to this job appear here." />}
+              <h2>{isEv ? 'Quotation and invoice' : 'Invoice'}</h2>
+              {!isEv && <p className="muted">Commercial jobs have no quotation step. Raise the invoice once the job is completed.</p>}
+              {jobQuotes.length + jobInvoices.length === 0 && <EmptyState title="Nothing raised for this job" helper={isEv ? 'Quotations and invoices linked to this job appear here.' : 'The invoice for this job appears here once raised.'} action={!isEv && job.status === 'Completed' && canAct ? <Link className="button primary" href={`/invoices/new?jobId=${job.id}`}>Raise invoice</Link> : undefined} />}
               <ul className="plain-list">
                 {jobQuotes.map(q => <li key={q.id}><Link className="link mono" href={`/quotations/${q.id}`}>{q.quoteNo}</Link> <StatusPill>{q.status}</StatusPill> <Price amount={q.total} /></li>)}
                 {jobInvoices.map(i => <li key={i.id}><Link className="link mono" href={`/invoices/${i.id}`}>{i.invoiceNo}</Link> <StatusPill>{i.status}</StatusPill> <Price amount={i.total} /></li>)}
@@ -165,7 +169,7 @@ export default function JobDetail() {
                 <h2>Communication</h2>
                 {canAct && <div className="button-row">
                   <button className="button secondary" onClick={() => ping('Assessment date confirmation')}>Send date confirmation</button>
-                  <button className="button secondary" onClick={() => ping('Quotation follow-up')}>Send follow-up</button>
+                  {isEv && <button className="button secondary" onClick={() => ping('Quotation follow-up')}>Send follow-up</button>}
                 </div>}
               </div>
               {notifications.length ? (

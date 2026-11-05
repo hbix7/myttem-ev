@@ -155,6 +155,7 @@ textarea { height: auto; min-height: 80px; padding: 10px 12px; }
 input::placeholder, textarea::placeholder { color: var(--muted-foreground); opacity: 0.8; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
 select { appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6b73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+select.field-input, .dark select { background-repeat: no-repeat; background-position: right 10px center; }
 .dark select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 .inline-input { width: 120px; height: 32px; text-align: right; }
@@ -665,3 +666,75 @@ button.countdown:hover { background: var(--active); }
   .print-only { display: block !important; }
   .screen-only { display: none !important; }
 }
+
+/* ---------- Scheduler v2: technician columns, rules, override highlight ---------- */
+.sch-board { margin: 16px 24px 24px; }
+.sch-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .sch-layout { grid-template-columns: minmax(0, 1fr); } }
+.sch-spacer { flex: 1; }
+.sch-conn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: 999px; }
+.sch-conn.on { background: color-mix(in srgb, var(--tone-green) 14%, transparent); color: color-mix(in srgb, var(--tone-green) 80%, var(--foreground)); }
+.sch-conn.off { background: color-mix(in srgb, var(--tone-red) 14%, transparent); color: color-mix(in srgb, var(--tone-red) 80%, var(--foreground)); }
+.sch-note { display: flex; align-items: center; gap: 8px; margin: 12px 24px 0; padding: 10px 14px; border-radius: var(--radius); background: var(--muted); font-size: 13px; }
+.sch-note.warn { background: color-mix(in srgb, var(--tone-amber) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--tone-amber) 30%, var(--border)); }
+.sch-board .sch-note { margin: 12px 0 0; }
+.sch-cal { overflow: auto; max-height: calc(100vh - 220px); }
+.sch-head-corner { position: sticky; top: 0; z-index: 6; background: var(--card); border-bottom: 1px solid var(--border); }
+.sch-head-cell { position: sticky; top: 0; z-index: 6; background: var(--card); border-bottom: 1px solid var(--border); border-left: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.sch-tech { display: flex; flex-direction: column; gap: 3px; width: 100%; font-size: 13px; }
+.sch-tech small { color: var(--muted-foreground); font-size: 12px; }
+.sch-tech .sch-flagtext { color: color-mix(in srgb, var(--tone-red) 85%, var(--foreground)); font-weight: 500; }
+.sch-meter { height: 4px; border-radius: 2px; background: var(--muted); overflow: hidden; margin-top: 4px; }
+.sch-meter i { display: block; height: 100%; background: var(--tone-blue); }
+.sch-meter.full i { background: var(--tone-amber); }
+.button.sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.sch-day, .sch-week { display: grid; min-width: min-content; }
+.sch-times { position: relative; border-right: 1px solid var(--border); }
+.sch-times span { position: absolute; right: 8px; font-size: 11px; color: var(--muted-foreground); transform: translateY(-1px); font-variant-numeric: tabular-nums; }
+.sch-col { position: relative; border-left: 1px solid var(--border); background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 55px, var(--border) 55px, var(--border) 56px); }
+.sch-off { position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted-foreground) 14%, transparent) 0 6px, transparent 6px 12px); display: flex; align-items: flex-start; justify-content: center; padding-top: 8px; }
+.sch-off span { font-size: 12px; font-weight: 600; color: var(--muted-foreground); background: var(--card); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+.sch-ev { --tone: var(--tone-blue); position: absolute; z-index: 2; display: flex; flex-direction: column; gap: 1px; overflow: hidden; padding: 4px 8px; border-radius: 8px; font-size: 12px; line-height: 1.3; color: inherit; text-decoration: none; background: color-mix(in srgb, var(--tone) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent); border-left: 3px solid var(--tone); transition: box-shadow 0.15s; }
+.sch-ev:hover { box-shadow: var(--shadow-pop); z-index: 4; }
+.sch-ev code, .sch-chip code { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.sch-ev span { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sch-ev small { color: var(--muted-foreground); }
+.sch-ev[draggable="true"], .sch-chip[draggable="true"] { cursor: grab; }
+.sch-ev.locked, .sch-chip.locked { --tone: var(--tone-grey); }
+.sch-ev.self, .sch-chip.self { --tone: var(--tone-green); }
+.sch-ev.override, .sch-chip.override { --tone: var(--tone-amber); background: color-mix(in srgb, var(--tone-amber) 22%, var(--card)); outline: 2px solid var(--tone-amber); outline-offset: -1px; }
+.sch-flag { display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--tone-amber) 55%, var(--foreground)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sch-flag.self { color: color-mix(in srgb, var(--tone-green) 70%, var(--foreground)); }
+.sch-ghost { position: absolute; left: 4px; right: 4px; z-index: 3; pointer-events: none; display: flex; flex-direction: column; padding: 4px 8px; border-radius: 8px; font-size: 12px; border: 2px dashed var(--tone-green); background: color-mix(in srgb, var(--tone-green) 14%, transparent); }
+.sch-ghost.warn { border-color: var(--tone-amber); background: color-mix(in srgb, var(--tone-amber) 16%, transparent); }
+.sch-daylabel { position: sticky; left: 0; z-index: 3; background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 12px; font-size: 13px; font-weight: 500; }
+.sch-daylabel.today { color: var(--brand); background: color-mix(in srgb, var(--brand) 6%, var(--card)); }
+.sch-daylabel span { color: var(--muted-foreground); font-weight: 400; font-size: 12px; }
+.link-button { background: transparent; border: 0; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.link-button:hover { text-decoration: underline; }
+.sch-cell { display: flex; flex-direction: column; gap: 6px; min-height: 104px; padding: 8px; border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.sch-cell.today { background: color-mix(in srgb, var(--brand) 4%, transparent); }
+.sch-cell.off { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted-foreground) 12%, transparent) 0 6px, transparent 6px 12px); }
+.sch-cell.ok { outline: 2px dashed var(--tone-green); outline-offset: -2px; }
+.sch-cell.warn { outline: 2px dashed var(--tone-amber); outline-offset: -2px; }
+.sch-cell-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.sch-load { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); }
+.sch-load.full { background: color-mix(in srgb, var(--tone-amber) 20%, transparent); color: color-mix(in srgb, var(--tone-amber) 50%, var(--foreground)); }
+.sch-off-tag { font-size: 11px; font-weight: 600; color: var(--muted-foreground); }
+.sch-chip { --tone: var(--tone-blue); display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 8px; font-size: 12px; color: inherit; text-decoration: none; background: color-mix(in srgb, var(--tone) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent); border-left: 3px solid var(--tone); }
+.sch-chip:hover { box-shadow: var(--shadow-pop); }
+.sch-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sch-preview { color: color-mix(in srgb, var(--tone-amber) 55%, var(--foreground)); font-size: 12px; }
+.sch-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
+.sch-legend span { display: flex; align-items: center; gap: 8px; }
+.sch-legend .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--border); }
+.sch-legend .sw.override { background: color-mix(in srgb, var(--tone-amber) 30%, var(--card)); outline: 2px solid var(--tone-amber); outline-offset: -2px; }
+.sch-legend .sw.self { background: color-mix(in srgb, var(--tone-green) 25%, var(--card)); border-color: var(--tone-green); }
+.sch-legend .sw.off { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted-foreground) 30%, transparent) 0 3px, transparent 3px 6px); }
+.sch-dialog-title { display: flex; align-items: center; gap: 8px; color: color-mix(in srgb, var(--tone-amber) 55%, var(--foreground)); }
+.sch-violations { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sch-violations li { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--tone-amber) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--tone-amber) 28%, var(--border)); font-size: 13px; }
+.sch-hint { font-size: 12px; margin-top: 10px; }
+.modal-card .sch-note { margin: 14px 0 0; }
+.date-strip button:disabled, .slot-grid button:disabled { opacity: 0.45; cursor: not-allowed; }
+.booking-error { color: var(--tone-red); font-size: 14px; margin: 12px 0; }
