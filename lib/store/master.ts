@@ -9,7 +9,7 @@ export type FlagKey = 'A' | 'B' | 'C'
 export const flagMeta: Record<FlagKey, { name: string; detail: string }> = {
   A: { name: 'Milestone A: Core job management', detail: 'Jobs, scheduler, technician field app, SLA timers.' },
   B: { name: 'Milestone B: Commercial', detail: 'Quotations, owner approval, invoices, item master.' },
-  C: { name: 'Milestone C: EV programme and integrations', detail: 'EV deadlines, chargebacks, SQL Accounting import and export.' },
+  C: { name: 'Milestone C: WhatsApp channel', detail: 'WhatsApp intake drafts, short alerts, ready notices, customer replies and the channel status panel. Documents always go by email.' },
 }
 
 const seed = (kind: VocabKind, values: string[]): VocabEntry[] => values.map((value, i) => ({ id: `${kind}-${i + 1}`, tenant_id: TENANT, kind, value, active: true }))

@@ -7,7 +7,7 @@ import { AppShell, EmptyState, FilterBar, PageHeader, StatusPill, useHydrated } 
 import { Price } from '@/components/commercial'
 import { useStore } from '@/lib/store'
 import { useCommercialStore, type Invoice, type InvoiceStatus } from '@/lib/store/commercial'
-import { sendNotification } from '@/lib/store/comms'
+import { dispatch } from '@/lib/messaging'
 import { can } from '@/lib/rbac'
 import { downloadInvoicePdf, E_INVOICE_NOTE } from '@/lib/invoicing'
 
@@ -74,7 +74,7 @@ export function InvoiceDetail({ id }: { id: string }) {
 
   const sendForSignOff = () => {
     update(invoice.id, { status: 'Sent for sign-off' })
-    const r = sendNotification(invoice.jobId, 'Invoice ready', 'Email', settings)
+    const r = dispatch(invoice.jobId, 'Invoice ready')
     toast.success(r.toast)
   }
   const signOff = () => {

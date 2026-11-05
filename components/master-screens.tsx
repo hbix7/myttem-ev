@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Download, Plus, Upload } from 'lucide-react'
 import { AppShell, FilterBar, PageHeader, StatusPill } from '@/components/shared'
+import { ChannelStatusPanel } from '@/components/comms'
 import { Modal } from '@/components/kit'
 import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
@@ -152,6 +153,8 @@ export function SettingsScreen() {
     <AppShell crumb="Settings">
       <PageHeader title="Settings" crumb="Settings" />
       <p className="page-intro">Confirmed values are editable by the administrator. Tenant: United Power Engineering.</p>
+
+      <ChannelStatusPanel />
 
       <section className="card settings-block">
         <h2>Quotation approval limit</h2>

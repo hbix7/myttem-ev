@@ -43,13 +43,13 @@ export const roleLabel: Record<Role, string> = {
 
 export const homeForRole = (role: Role) => role === 'technician' ? '/tech' : role === 'portal' ? '/portal' : role === 'owner' ? '/quotations' : '/'
 
-export interface NavItem { section: string; label: string; href: string; roles: Role[]; entity?: Entity }
+export interface NavItem { section: string; label: string; href: string; roles: Role[]; entity?: Entity; flag?: 'C' }
 const all: Role[] = ['sysadmin', 'admin', 'owner']
 export const nav: NavItem[] = [
   { section: 'Overview', label: 'Dashboard', href: '/', roles: all },
   { section: 'Work Management', label: 'Jobs', href: '/jobs', roles: ['admin', 'owner'] },
   { section: 'Work Management', label: 'Scheduler', href: '/scheduler', roles: ['admin'] },
-  { section: 'Work Management', label: 'Pending intake', href: '/intake', roles: ['admin'] },
+  { section: 'Work Management', label: 'Pending intake', href: '/intake', roles: ['admin'], flag: 'C' },
   { section: 'Commercial', label: 'Quotations', href: '/quotations', roles: ['admin', 'owner'] },
   { section: 'Commercial', label: 'Invoices', href: '/invoices', roles: ['admin', 'owner'] },
   { section: 'EV Programme', label: 'EV pipeline', href: '/ev/pipeline', roles: ['admin', 'owner'] },
