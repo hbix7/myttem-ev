@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getNow } from '@/lib/clock'
 import { useStore } from '@/lib/store'
+import { makeJobSheetDocument, OFFICE_EMAIL } from '@/lib/jobsheet'
 import type { Attachment, AvailabilityDay, ChecklistAnswer, GeneratedDocument, Job, JobHistory, SyncConflict, SyncQueueEntry } from '@/lib/types'
 
 type FieldState = {
@@ -39,7 +40,18 @@ export const useFieldStore = create<FieldState>()(persist((set, get) => ({
   answer: (jobId, itemId, value) => { set(s => ({ answers: [...s.answers.filter(a => !(a.jobId === jobId && a.itemId === itemId)), { jobId, itemId, value, answeredAt: getNow().toISOString() }] })); enqueue(set, get, jobId, 'checklist', { itemId, value }) },
   addAttachment: (jobId, attachment) => { set(s => ({ attachments: [...s.attachments, attachment] })); enqueue(set, get, jobId, attachment.kind === 'other' ? 'photo' : attachment.kind, { name: attachment.name }) },
   endJob: (id) => { set(s => ({ jobs: s.jobs.map(j => j.id === id ? { ...j, endTime: getNow().toISOString() } : j) })); enqueue(set, get, id, 'end') },
-  submitJob: (id) => { set(s => ({ jobs: s.jobs.map(j => j.id === id ? { ...j, status: 'Completed' } : j) })); enqueue(set, get, id, 'submit') },
+  submitJob: (id) => {
+    const done = getNow().toISOString()
+    const base = get().jobs.find(j => j.id === id)
+    if (!base) return
+    const finished: Job = { ...base, status: 'Completed', completedAt: done, endTime: base.endTime ?? done }
+    const st = useStore.getState()
+    const doc = makeJobSheetDocument({ job: finished, type: st.jobTypes.find(t => t.id === finished.jobTypeId), customer: st.customers.find(c => c.id === finished.customerId), tech: st.users.find(u => u.id === finished.technicianId), answers: get().answers, checklist: st.checklistItems, officeEmail: OFFICE_EMAIL })
+    const sheeted = { ...finished, jobSheetId: doc.id }
+    set(s => ({ jobs: s.jobs.map(j => j.id === id ? sheeted : j), documents: [...s.documents, doc] }))
+    useStore.setState(s => ({ jobs: s.jobs.map(j => j.id === id ? { ...j, ...sheeted } : j) }))
+    enqueue(set, get, id, 'submit')
+  },
   toggleConflictSimulation: () => set(s => ({ armedConflict: !s.armedConflict })),
   flush: () => { const { queue, armedConflict } = get(); if (!queue.length) return; const first = queue[0]; if (armedConflict) { set(s => ({ conflicts: [...s.conflicts, { id: crypto.randomUUID(), jobId: first.jobId, detectedAt: getNow().toISOString(), fields: ['endTime', 'checklist answer', 'remarks'], status: 'Unresolved', deviceValues: { endTime: 'Device 18:00', 'checklist answer': 'Yes', remarks: 'Captured offline' }, serverValues: { endTime: 'Server 17:45', 'checklist answer': 'No', remarks: 'Office copy' } }], armedConflict: false })); return } const jobIds = [...new Set(queue.map(q => q.jobId))]; set(s => ({ queue: [], jobs: s.jobs.map(j => jobIds.includes(j.id) ? { ...j, status: 'Completed' } : j), documents: [...s.documents, ...jobIds.map(jobId => ({ id: crypto.randomUUID(), jobId, docType: 'Job Sheet' as const, createdAt: getNow().toISOString(), status: 'Generated' as const }))], history: [...s.history, ...jobIds.map(jobId => ({ id: crypto.randomUUID(), jobId, userId: 'u4', event: 'Synced from device', toStatus: 'Completed' as const, at: getNow().toISOString() }))] }));
   },
