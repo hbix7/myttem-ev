@@ -10,6 +10,7 @@ import { useStore } from '@/lib/store'
 import { useFieldStore } from '@/lib/store/field'
 import { useOperationsStore } from '@/lib/store/operations'
 import { getNow } from '@/lib/clock'
+import { runEvAutomation } from '@/lib/ev'
 import { nav, sectionOrder, canOpenPath, homeForRole, roleLabel } from '@/lib/rbac'
 import { slaInfo } from '@/lib/selectors'
 import { buildPdfDataUrl, downloadCsv, downloadDataUrl, downloadXlsx } from '@/lib/export'
@@ -181,6 +182,8 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
   const router = useRouter()
   const { users, currentUserId } = useStore()
   const user = users.find(u => u.id === currentUserId)!
+  const demoOffset = useStore(s => s.demoOffset)
+  useEffect(() => { runEvAutomation() }, [demoOffset])
   const visible = nav.filter(n => n.roles.includes(user.role))
   const activeItem = visible.filter(i => isActivePath(pathname, i.href)).sort((a, b) => b.href.length - a.href.length)[0]
   const activeSection = activeItem?.section

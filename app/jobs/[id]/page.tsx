@@ -6,6 +6,7 @@ import { AppShell, EmptyState, PageHeader, StatusPill, useHydrated } from '@/com
 import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
 import { Price } from '@/components/commercial'
+import { EvWorkflowPanel } from '@/components/ev-pipeline'
 import { jobTabs } from '@/components/job/tabs'
 import { getNow } from '@/lib/clock'
 import { slaState, timeRemaining } from '@/lib/selectors'
@@ -90,10 +91,10 @@ export default function JobDetail() {
                   {store.users.filter(u => u.role === 'technician').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
                 <button className="button secondary" onClick={assign}>Assign</button>
-                {job.status === 'Completed' && (isEv
+                {job.status === 'Completed' && !job.ev && (isEv
                   ? <button className="button primary" onClick={() => { store.raiseInvoice(job.id, comment); toast.success('Invoice raised'); setComment('') }}>Raise invoice</button>
                   : <Link className="button primary" href={`/invoices/new?jobId=${job.id}`}>Raise invoice</Link>)}
-                {job.status === 'Invoiced' && <button className="button primary" onClick={() => { store.closeJob(job.id, comment); toast.success('Job closed'); setComment('') }}>Close job</button>}
+                {job.status === 'Invoiced' && !job.ev && <button className="button primary" onClick={() => { store.closeJob(job.id, comment); toast.success('Job closed'); setComment('') }}>Close job</button>}
                 {!['Closed', 'Invoiced'].includes(job.status) && <button className="button secondary" onClick={hold}>{job.holdSince ? 'Resume job' : 'Put on hold'}</button>}
               </div>
               <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Comment for the history log (optional)" aria-label="Comment" />
@@ -103,6 +104,8 @@ export default function JobDetail() {
           <div className="tabs underline">
             {visibleTabs.map(t => <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>{t.label}</button>)}
           </div>
+
+          {job.ev && <EvWorkflowPanel job={job} />}
 
           {tab === 'overview' && (
             <section className="content-card">

@@ -7,7 +7,6 @@ import { AppShell, EmptyState, FilterBar, PageHeader, StatusPill, useHydrated } 
 import { Price } from '@/components/commercial'
 import { useStore } from '@/lib/store'
 import { useCommercialStore, type Invoice, type InvoiceStatus } from '@/lib/store/commercial'
-import { useEvStore } from '@/lib/store/ev'
 import { sendNotification } from '@/lib/store/comms'
 import { can } from '@/lib/rbac'
 import { downloadInvoicePdf, E_INVOICE_NOTE } from '@/lib/invoicing'
@@ -86,9 +85,7 @@ export function InvoiceDetail({ id }: { id: string }) {
   const confirmPayment = () => {
     update(invoice.id, { status: 'Paid', paymentConfirmedAt: new Date().toISOString() })
     if (isEv) {
-      useEvStore.getState().confirmPayment(invoice.jobId, invoice.customer, invoice.jobNo)
-      sendNotification(invoice.jobId, 'Booking link ready', 'Email', settings)
-      toast.success('Payment confirmed. Booking link sent to the customer.')
+      toast.success('Payment confirmed')
     } else toast.success('Payment confirmed')
   }
 

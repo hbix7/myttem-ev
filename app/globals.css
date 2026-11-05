@@ -738,3 +738,18 @@ button.countdown:hover { background: var(--active); }
 .modal-card .sch-note { margin: 14px 0 0; }
 .date-strip button:disabled, .slot-grid button:disabled { opacity: 0.45; cursor: not-allowed; }
 .booking-error { color: var(--tone-red); font-size: 14px; margin: 12px 0; }
+
+/* EV pipeline */
+.ev-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px}
+.ev-column{flex:0 0 220px;display:flex;flex-direction:column;gap:8px}
+.ev-column h2{font-size:13px;font-weight:600;margin:0 0 4px}
+.ev-card{display:flex;flex-direction:column;gap:2px;padding:10px;border:1px solid var(--border,rgba(128,128,128,.3));border-radius:8px;text-decoration:none;color:inherit;background:var(--card,transparent)}
+.ev-card:hover{border-color:currentColor}
+.ev-stages{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:0 0 12px}
+.ev-stages li{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--border,rgba(128,128,128,.3));opacity:.6}
+.ev-stages li.done{opacity:1}
+.ev-stages li.current{opacity:1;font-weight:600;border-color:currentColor}
+.ev-form{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.ev-form fieldset{border:1px solid var(--border,rgba(128,128,128,.3));border-radius:8px;padding:8px 12px}
+.check-row{display:flex;gap:8px;align-items:center}
+.countdown.done{opacity:.7}
