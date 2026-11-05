@@ -11,7 +11,9 @@ import { jobTabs } from '@/components/job/tabs'
 import { getNow } from '@/lib/clock'
 import { slaState, timeRemaining } from '@/lib/selectors'
 import { can } from '@/lib/rbac'
-import { sendNotification } from '@/lib/store/comms'
+import { dispatch } from '@/lib/messaging'
+import { useMasterStore } from '@/lib/store/master'
+import { useWhatsAppStore } from '@/lib/store/whatsapp'
 import { toast } from 'sonner'
 
 const progress = ['Created', 'Assigned', 'In Progress', 'Completed', 'Invoiced', 'Closed']
@@ -43,6 +45,9 @@ export default function JobDetail() {
   const isEv = !!type?.isEv
   const jobQuotes = isEv ? quotes.filter(q => q.jobId === job.id) : []
   const jobInvoices = invoices.filter(i => i.jobId === job.id)
+  const whatsappOn = useMasterStore(m => m.flags.C)
+  const allReplies = useWhatsAppStore(w => w.replies)
+  const jobReplies = allReplies.filter(r => r.jobId === job.id).sort((a, b) => b.at.localeCompare(a.at))
   const state = slaState(job, type)
   const stepIndex = progress.indexOf(job.status)
   const baseTabs = current.role === 'portal' ? jobTabs.filter(t => ['overview', 'quotation'].includes(t.id)) : jobTabs
@@ -59,8 +64,7 @@ export default function JobDetail() {
     setComment('')
   }
   const ping = (event: string) => {
-    const result = sendNotification(job.id, event, 'WhatsApp', store.settings)
-    useStore.setState(s => ({ notifications: [...s.notifications, result.notification] }))
+    const result = dispatch(job.id, event)
     toast.success(result.toast)
   }
 
@@ -179,7 +183,15 @@ export default function JobDetail() {
                 <ul className="plain-list">
                   {notifications.map(n => <li key={n.id}>{new Date(n.at).toLocaleString('en-MY')} · {n.event ?? n.subject} · {n.channel} <StatusPill>{n.status ?? 'Sent'}</StatusPill></li>)}
                 </ul>
-              ) : <EmptyState title="No messages sent" helper="WhatsApp is used for short alerts. Documents go by email with a WhatsApp ready ping." />}
+              ) : <EmptyState title="No messages sent" helper={whatsappOn ? 'WhatsApp is used for short alerts. Documents go by email with a WhatsApp ready ping.' : 'Messages for this job are sent by email.'} />}
+              {whatsappOn && jobReplies.length > 0 && (
+                <div className="reply-block">
+                  <h3>Customer replies</h3>
+                  <ul className="plain-list">
+                    {jobReplies.map(r => <li key={r.id}>{new Date(r.at).toLocaleString('en-MY')} · {r.message} <StatusPill tone={r.responded ? 'green' : 'orange'}>{r.responded ? 'Responded' : 'Awaiting reply'}</StatusPill></li>)}
+                  </ul>
+                </div>
+              )}
             </section>
           )}
         </section>

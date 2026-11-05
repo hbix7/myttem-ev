@@ -1,6 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useCommercialStore, quoteTotal, type PrincipalCode } from '@/lib/store/commercial'
 import { getNow } from '@/lib/clock'
+import { dispatch } from '@/lib/messaging'
 import { buildPdfDataUrl } from '@/lib/export'
 import { buildDocLines, docFileName, docTitle, type EvDocType } from '@/lib/evdocs'
 import type { EvCase, EvMilestone, EvStatus, GeneratedDocument, Job, Settings } from '@/lib/types'
@@ -31,7 +32,7 @@ function note(jobId: string, event: string, comment?: string) {
 }
 
 function email(jobId: string, subject: string, event: string) {
-  useStore.setState(s => ({ notifications: [...s.notifications, { id: crypto.randomUUID(), jobId, channel: 'Email' as const, subject, event, status: 'Queued' as const, at: nowIso() }] }))
+  dispatch(jobId, event, subject)
 }
 
 function patchCase(jobId: string, patch: Partial<EvCase> & { milestone?: EvMilestone }) {
@@ -142,7 +143,7 @@ export function evOnScheduled(jobId: string) {
     if (parent?.ev && ['Paid', 'Scheduled'].includes(parent.ev.status)) {
       patchCase(parent.id, { status: 'Scheduled', milestone: 'scheduled' })
       note(parent.id, 'Installation scheduled', job.scheduledAt)
-      email(parent.id, 'Your installation is confirmed', 'Installation confirmation')
+      email(parent.id, 'Your installation is confirmed', 'Installation date confirmation')
     }
   }
 }
@@ -284,7 +285,7 @@ export function runEvAutomation() {
     const pastDeadline = new Date(due.dueAt).getTime() < t
     const target = Math.min(daysSince, Math.max(0, Math.floor((new Date(due.dueAt).getTime() - new Date(ev.at.quoted).getTime()) / 86400000)))
     if (!pastDeadline && target > ev.followUps) {
-      for (let i = ev.followUps; i < target; i++) email(job.id, `Reminder ${i + 1}: your EV charger quotation`, 'Follow-up email')
+      for (let i = ev.followUps; i < target; i++) email(job.id, `Reminder ${i + 1}: your EV charger quotation`, 'Quotation follow-up')
       patchCase(job.id, { status: 'Follow-up', followUps: target })
       note(job.id, 'Follow-up emails sent', `${target} reminder(s) so far`)
     } else if (pastDeadline && !ev.callTask) {

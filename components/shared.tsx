@@ -9,6 +9,8 @@ import {
 import { useStore } from '@/lib/store'
 import { useFieldStore } from '@/lib/store/field'
 import { useOperationsStore } from '@/lib/store/operations'
+import { useMasterStore } from '@/lib/store/master'
+import { InboundSync } from '@/components/comms'
 import { getNow } from '@/lib/clock'
 import { runEvAutomation } from '@/lib/ev'
 import { nav, sectionOrder, canOpenPath, homeForRole, roleLabel } from '@/lib/rbac'
@@ -184,14 +186,15 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
   const user = users.find(u => u.id === currentUserId)!
   const demoOffset = useStore(s => s.demoOffset)
   useEffect(() => { runEvAutomation() }, [demoOffset])
-  const visible = nav.filter(n => n.roles.includes(user.role))
+  const flags = useMasterStore(m => m.flags)
+  const visible = nav.filter(n => n.roles.includes(user.role) && (!n.flag || flags[n.flag]))
   const activeItem = visible.filter(i => isActivePath(pathname, i.href)).sort((a, b) => b.href.length - a.href.length)[0]
   const activeSection = activeItem?.section
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(activeSection ? [activeSection] : []))
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null)
-  const draftLeadCount = useOperationsStore(s => s.leads.filter(l => l.status === 'Draft').length)
+  const draftLeadCount = useOperationsStore(s => s.leads.filter(l => l.status === 'Draft').length) * (useMasterStore(m => m.flags.C) ? 1 : 0)
 
   useEffect(() => {
     try {
@@ -235,6 +238,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
 
   return (
     <div className={`app-shell ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'drawer-open' : ''}`}>
+      <InboundSync />
       <aside className="sidebar" aria-label="Primary">
         <div className="sidebar-head">
           <div className="brand-mark"><Wrench size={18} /></div>
