@@ -1,2 +1,2 @@
-import { EntityScreen } from '@/components/admin-screens'
-export default function Dropdowns(){return <EntityScreen title="Dropdown Lists" crumb="Master Data > Dropdowns" singular="Dropdown value" rows={[{List:'Fault types',Value:'Power trip',Status:'Active'},{List:'Equipment',Value:'Distribution board',Status:'Active'},{List:'Sites',Value:'Customer site',Status:'Active'}]} columns={['List','Value','Status']} helper="Edit reusable values for intake and service forms."/>}
+import { VocabularyScreen } from '@/components/master-screens'
+export default function Dropdowns() { return <VocabularyScreen /> }

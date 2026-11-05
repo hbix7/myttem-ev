@@ -11,7 +11,8 @@ import { useFieldStore } from '@/lib/store/field'
 import { useOperationsStore } from '@/lib/store/operations'
 import { getNow } from '@/lib/clock'
 import { nav, sectionOrder, canOpenPath, homeForRole, roleLabel } from '@/lib/rbac'
-import { slaState, timeRemaining } from '@/lib/selectors'
+import { slaInfo } from '@/lib/selectors'
+import { buildPdfDataUrl, downloadCsv, downloadDataUrl, downloadXlsx } from '@/lib/export'
 import type { Job } from '@/lib/types'
 import { toast } from 'sonner'
 
@@ -118,7 +119,7 @@ function UserMenu() {
       {open && (
         <div className="menu-pop user-menu" role="menu">
           <p className="menu-label">Switch role (demo)</p>
-          {users.map(u => (
+          {users.filter(u => ['u3', 'u2', 'u4'].includes(u.id)).map(u => (
             <button key={u.id} role="menuitem" className={`menu-item ${u.id === currentUserId ? 'selected' : ''}`} onClick={() => { setCurrentUser(u.id); setOpen(false); toast.success(`Switched to ${roleLabel[u.role]}`); router.push(homeForRole(u.role)) }}>
               {u.name}<span>{roleLabel[u.role]}</span>
             </button>
@@ -369,12 +370,11 @@ export function FilterBar({ search, onSearch, children, placeholder = 'Search jo
 
 export function SlaCell({ job }: { job: Job }) {
   const type = useStore(s => s.jobTypes.find(t => t.id === job.jobTypeId))
-  const state = slaState(job, type)
-  const left = new Date(job.slaDue).getTime() > getNow().getTime()
+  const info = slaInfo(job, type)
   return (
     <div className="sla-cell">
-      <StatusPill tone={state}>{state}</StatusPill>
-      <span>{timeRemaining(job)} {left ? 'left' : 'overdue'}</span>
+      <StatusPill tone={info.state}>{info.state}</StatusPill>
+      <span>{info.frozen ? (info.state === 'Met' ? 'Stopped at completion' : info.label) : info.label}</span>
     </div>
   )
 }
@@ -382,13 +382,21 @@ export function SlaCell({ job }: { job: Job }) {
 export function ExportMenu({ jobs }: { jobs: Job[] }) {
   const [open, setOpen] = useState(false)
   const ref = useDismiss(open, () => setOpen(false))
-  const download = () => {
-    const csv = ['Job,Subject,Status', ...jobs.map(j => [j.jobNo, j.subject, j.status].map(v => `"${v}"`).join(','))].join('\n')
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-    a.download = 'myttem-jobs.csv'
-    a.click()
-    toast.success('CSV export downloaded')
+  const build = () => {
+    const st = useStore.getState()
+    const header = ['Job', 'Subject', 'Customer', 'Type', 'Status', 'Channel', 'Technician', 'SLA', 'Created']
+    const rows = jobs.map(j => {
+      const t = st.jobTypes.find(x => x.id === j.jobTypeId)
+      return [j.jobNo, j.subject, st.customers.find(c => c.id === j.customerId)?.name ?? '', t?.name ?? '', j.status, j.channel, st.users.find(u => u.id === j.technicianId)?.name ?? 'Unassigned', slaInfo(j, t).label, j.createdAt.slice(0, 10)]
+    })
+    return { header, rows }
+  }
+  const run = async (kind: 'xlsx' | 'csv' | 'pdf') => {
+    const { header, rows } = build()
+    if (kind === 'csv') downloadCsv('myttem-jobs.csv', header, rows)
+    if (kind === 'xlsx') await downloadXlsx('myttem-jobs.xlsx', header, rows)
+    if (kind === 'pdf') downloadDataUrl(buildPdfDataUrl('Myttem jobs report', rows.map(r => r.slice(0, 7).join('  |  '))), 'myttem-jobs.pdf')
+    toast.success(`${kind.toUpperCase()} export downloaded (${rows.length} jobs)`)
     setOpen(false)
   }
   return (
@@ -396,8 +404,9 @@ export function ExportMenu({ jobs }: { jobs: Job[] }) {
       <button className="button secondary" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><Download size={15} />Export<ChevronDown size={14} /></button>
       {open && (
         <div className="menu-pop row-menu" role="menu">
-          <button role="menuitem" className="menu-item" onClick={download}>Excel (.csv)</button>
-          <button role="menuitem" className="menu-item" onClick={() => { window.print(); setOpen(false) }}>PDF (print)</button>
+          <button role="menuitem" className="menu-item" onClick={() => run('xlsx')}>Excel (.xlsx)</button>
+          <button role="menuitem" className="menu-item" onClick={() => run('csv')}>CSV (.csv)</button>
+          <button role="menuitem" className="menu-item" onClick={() => run('pdf')}>PDF (.pdf)</button>
         </div>
       )}
     </div>
