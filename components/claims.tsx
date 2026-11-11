@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { FileDown, X } from 'lucide-react'
 import { AppShell, PageHeader, StatusPill } from '@/components/shared'
@@ -94,7 +94,8 @@ function ClaimDrawer({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 function NewClaim({ onDone }: { onDone: () => void }) {
-  const jobs = useStore(s => s.jobs.filter(j => j.ev))
+  const allJobs = useStore(s => s.jobs)
+  const jobs = useMemo(() => allJobs.filter(j => j.ev), [allJobs])
   const { customers, principals } = useStore()
   const by = useActor()
   const addClaim = useClaimStore(s => s.addClaim)
