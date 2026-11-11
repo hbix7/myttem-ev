@@ -64,7 +64,8 @@ const subtitles: Record<string, string> = {
   'EV conversion': 'Quotations issued against installations completed.',
   Customers: 'Customer accounts, contacts and sites.',
   Reports: 'Operational and commercial reporting.',
-  'Pending intake': 'Review incoming requests before they become jobs.',
+  'Email intake': 'Review incoming email requests before they become jobs.',
+  Notifications: 'Messages sent to customers about their jobs.',
 }
 export function PageHeader({ title, subtitle, action }: { title: string; crumb?: string; subtitle?: string; action?: React.ReactNode }) {
   const sub = subtitle ?? subtitles[title]
@@ -162,7 +163,7 @@ function NavIcon({ label }: { label: string }) {
   if (label === 'Dashboard') return <LayoutDashboard {...p} />
   if (label === 'Jobs') return <Briefcase {...p} />
   if (label === 'Scheduler') return <CalendarClock {...p} />
-  if (label === 'Pending intake') return <Inbox {...p} />
+  if (label === 'Email intake') return <Inbox {...p} />
   if (label === 'WhatsApp inbox') return <MessageCircle {...p} />
   if (label === 'Quotations') return <FileText {...p} />
   if (label === 'Invoices') return <Receipt {...p} />
@@ -170,7 +171,7 @@ function NavIcon({ label }: { label: string }) {
   if (label.includes('Document')) return <FolderOpen {...p} />
   if (label === 'Customers') return <Users {...p} />
   if (label === 'Master Data') return <Database {...p} />
-  if (label === 'Communication') return <MessageSquare {...p} />
+  if (label === 'Notifications') return <Bell {...p} />
   if (label === 'Reports') return <BarChart3 {...p} />
   if (label === 'SQL Accounting') return <ShoppingCart {...p} />
   if (label === 'SLA') return <Shield {...p} />
@@ -199,7 +200,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(activeSection ? [activeSection] : []))
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null)
-  const draftLeadCount = useOperationsStore(s => s.leads.filter(l => l.status === 'Draft').length) * (useMasterStore(m => m.flags.C) ? 1 : 0)
+  const draftLeadCount = useOperationsStore(s => s.leads.filter(l => l.status === 'Draft' || l.status === 'Manual').length) * (useMasterStore(m => m.flags.C) ? 1 : 0)
 
   useEffect(() => {
     try {
@@ -273,7 +274,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
                           <li key={item.href}>
                             <Link href={item.href} className={`nav-link ${activeItem?.href === item.href ? 'active' : ''}`} aria-current={activeItem?.href === item.href ? 'page' : undefined} tabIndex={isOpen ? 0 : -1}>
                               <NavIcon label={item.label} /><span className="nav-label">{item.label}</span>
-                              {item.label === 'Pending intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
+                              {item.label === 'Email intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
                             </Link>
                           </li>
                         ))}
@@ -292,7 +293,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
                   <Link key={item.href} href={item.href} aria-label={item.label} className={`nav-link ${activeItem?.href === item.href ? 'active' : ''}`}
                     onMouseEnter={e => showTip(e, item.label)} onMouseLeave={() => setTip(null)} onFocus={e => showTip(e, item.label)} onBlur={() => setTip(null)}>
                     <NavIcon label={item.label} />
-                    {item.label === 'Pending intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
+                    {item.label === 'Email intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
                   </Link>
                 ))}
               </div>

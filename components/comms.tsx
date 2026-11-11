@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 import { StatusPill } from '@/components/shared'
@@ -40,26 +39,6 @@ export function useInboundSync() {
 export function InboundSync() {
   useInboundSync()
   return null
-}
-
-const tabs = [
-  { href: '/communication/notifications', label: 'Notifications' },
-  { href: '/communication/intake', label: 'Pending intake' },
-  { href: '/communication/whatsapp', label: 'WhatsApp inbox', whatsapp: true },
-  { href: '/communication/sandbox', label: 'Sandbox', whatsapp: true },
-  { href: '/communication/usage', label: 'Usage' },
-]
-
-export function CommsTabs() {
-  const pathname = usePathname()
-  const on = useMasterStore(m => m.flags.C)
-  return (
-    <nav className="tabs underline" aria-label="Communication sections">
-      {tabs.filter(t => on || !t.whatsapp).map(t => (
-        <Link key={t.href} href={t.href} className={pathname === t.href ? 'active' : ''} aria-current={pathname === t.href ? 'page' : undefined}>{t.label}</Link>
-      ))}
-    </nav>
-  )
 }
 
 type Sender = { label: string; phone: string; name: string }
@@ -113,7 +92,7 @@ export function WhatsAppSandbox() {
 
   return (
     <div className="stack">
-      <p className="helper-banner">Messages are posted to the real webhook parser in dry-run mode, so no Meta credentials are needed. Every new number opens a conversation in the WhatsApp inbox and auto-creates a job. Email requests go to Pending intake.</p>
+      <p className="helper-banner">Messages are posted to the real webhook parser in dry-run mode, so no Meta credentials are needed. Every new number opens a conversation in the WhatsApp inbox and auto-creates a job. Email requests go to Email intake.</p>
       <section className="card settings-block">
         <h2>Sender</h2>
         <label>Send as
@@ -146,13 +125,13 @@ export function WhatsAppSandbox() {
 
       <section className="card settings-block">
         <h2>Email intake</h2>
-        <p className="muted">Email is the only channel that lands in Pending intake for review. A complete template becomes a draft; anything else needs manual entry.</p>
+        <p className="muted">Email is the only channel that lands in Email intake for review. A complete template becomes a draft; anything else needs manual entry.</p>
         <div className="form-grid">
           <label>From<input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} /></label>
           <label>Subject<input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} /></label>
         </div>
         <div className="button-row">
-          <button className="button secondary" onClick={() => { const r = receiveEmail(emailFrom, emailSubject, asText); toast.success(r === 'draft' ? 'Email added to Pending intake as a draft' : 'Email added to Manual entry needed'); setLog(l => [{ id: crypto.randomUUID(), at: new Date().toLocaleTimeString('en-MY'), sent: 'Email with complete template', outcome: r === 'draft' ? 'Intake draft' : 'Manual entry', tone: r === 'draft' ? 'green' : 'orange' }, ...l].slice(0, 12)) }}>Send template by email</button>
+          <button className="button secondary" onClick={() => { const r = receiveEmail(emailFrom, emailSubject, asText); toast.success(r === 'draft' ? 'Email added to Email intake' : 'Email added to Manual entry needed'); setLog(l => [{ id: crypto.randomUUID(), at: new Date().toLocaleTimeString('en-MY'), sent: 'Email with complete template', outcome: r === 'draft' ? 'Intake draft' : 'Manual entry', tone: r === 'draft' ? 'green' : 'orange' }, ...l].slice(0, 12)) }}>Send template by email</button>
           <button className="button secondary" onClick={() => { receiveEmail(emailFrom, emailSubject, freeText); toast.success('Email added to Manual entry needed'); setLog(l => [{ id: crypto.randomUUID(), at: new Date().toLocaleTimeString('en-MY'), sent: 'Free-text email', outcome: 'Manual entry', tone: 'orange' }, ...l].slice(0, 12)) }}>Send free-text email</button>
         </div>
       </section>
@@ -162,7 +141,7 @@ export function WhatsAppSandbox() {
         {log.length ? (
           <ul className="plain-list">{log.map(l => <li key={l.id}>{l.at} · {l.sent} <StatusPill tone={l.tone}>{l.outcome}</StatusPill></li>)}</ul>
         ) : <p className="muted">Nothing sent yet.</p>}
-        <div className="button-row"><Link className="button secondary" href="/communication/whatsapp">Open WhatsApp inbox</Link><Link className="button secondary" href="/communication/intake">Open Pending intake</Link></div>
+        <div className="button-row"><Link className="button secondary" href="/communication/whatsapp">Open WhatsApp inbox</Link><Link className="button secondary" href="/communication/intake">Open Email intake</Link></div>
       </section>
     </div>
   )
