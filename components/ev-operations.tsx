@@ -75,14 +75,13 @@ export function DeadlinesPage() {
   )
 }
 
-export function ChargebacksPage() {
+export function ChargebacksTable() {
   const jobs = useStore(s => s.jobs)
   const customers = useStore(s => s.customers)
   const rows = jobs.filter(j => j.ev?.invoicedAmt !== undefined)
   const total = rows.reduce((n, j) => ({ inv: n.inv + (j.ev!.invoicedAmt || 0), claim: n.claim + (j.ev!.claimableAmt || 0) }), { inv: 0, claim: 0 })
   return (
-    <AppShell crumb="EV > Chargebacks">
-      <PageHeader title="EV chargebacks" crumb="EV > Chargebacks" subtitle="Amounts invoiced to the customer against the portion claimable from the principal. Cases appear here once invoiced." />
+    <>
       <main className="content">
         <section className="table-wrap">
           <table className="data-table">
@@ -104,7 +103,7 @@ export function ChargebacksPage() {
           {!rows.length && <EmptyState title="No chargebacks yet" helper="Raise an invoice on an installed EV case to start a chargeback." />}
         </section>
       </main>
-    </AppShell>
+    </>
   )
 }
 

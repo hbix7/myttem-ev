@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Bell, BarChart3, CalendarClock, Check, ChevronDown, ChevronRight, ClipboardList, Database, Download, FileText, Inbox, LayoutDashboard,
-  LogOut, Menu, MessageSquare, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, Shield, SlidersHorizontal, Sun, Users, Wrench, X, Zap, ShoppingCart, FolderOpen, Briefcase,
+  LogOut, Menu, MessageCircle, MessageSquare, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, Shield, SlidersHorizontal, Sun, Users, Wrench, X, Zap, ShoppingCart, FolderOpen, Briefcase,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { useFieldStore } from '@/lib/store/field'
@@ -14,6 +14,8 @@ import { InboundSync } from '@/components/comms'
 import { getNow } from '@/lib/clock'
 import { runEvAutomation } from '@/lib/ev'
 import { nav, sectionOrder, canOpenPath, homeForRole, roleLabel } from '@/lib/rbac'
+import { startAuditWatchers } from '@/lib/store/audit'
+import { AccessDenied, RoleSwitcher } from '@/components/access'
 import { slaInfo } from '@/lib/selectors'
 import { buildPdfDataUrl, downloadCsv, downloadDataUrl, downloadXlsx } from '@/lib/export'
 import type { Job } from '@/lib/types'
@@ -62,7 +64,8 @@ const subtitles: Record<string, string> = {
   'EV conversion': 'Quotations issued against installations completed.',
   Customers: 'Customer accounts, contacts and sites.',
   Reports: 'Operational and commercial reporting.',
-  'Pending intake': 'Review incoming requests before they become jobs.',
+  'Email intake': 'Review incoming email requests before they become jobs.',
+  Notifications: 'Messages sent to customers about their jobs.',
 }
 export function PageHeader({ title, subtitle, action }: { title: string; crumb?: string; subtitle?: string; action?: React.ReactNode }) {
   const sub = subtitle ?? subtitles[title]
@@ -134,7 +137,7 @@ function UserMenu() {
           <button role="menuitem" className="menu-item" onClick={() => { resetClock(); setOpen(false) }}>Reset clock</button>
           <button role="menuitem" className="menu-item" onClick={() => { useFieldStore.getState().toggleConflictSimulation(); setOpen(false); toast.success('Next offline sync will create a conflict') }}>Simulate sync conflict</button>
           <div className="menu-divider" />
-          <button role="menuitem" className="menu-item danger" onClick={() => { setOpen(false); toast('Log out is disabled in this demo') }}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: 'inherit', fontSize: 13, textTransform: 'none' }}><LogOut size={14} /> Log out</span></button>
+          <button role="menuitem" className="menu-item danger" onClick={() => { setOpen(false); router.push('/login') }}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: 'inherit', fontSize: 13, textTransform: 'none' }}><LogOut size={14} /> Log out</span></button>
         </div>
       )}
       <button className="user-block" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}>
@@ -160,19 +163,22 @@ function NavIcon({ label }: { label: string }) {
   if (label === 'Dashboard') return <LayoutDashboard {...p} />
   if (label === 'Jobs') return <Briefcase {...p} />
   if (label === 'Scheduler') return <CalendarClock {...p} />
-  if (label === 'Pending intake') return <Inbox {...p} />
+  if (label === 'Email intake') return <Inbox {...p} />
+  if (label === 'WhatsApp inbox') return <MessageCircle {...p} />
   if (label === 'Quotations') return <FileText {...p} />
   if (label === 'Invoices') return <Receipt {...p} />
   if (label.startsWith('EV')) return <Zap {...p} />
   if (label.includes('Document')) return <FolderOpen {...p} />
   if (label === 'Customers') return <Users {...p} />
   if (label === 'Master Data') return <Database {...p} />
-  if (label === 'Communication') return <MessageSquare {...p} />
+  if (label === 'Notifications') return <Bell {...p} />
   if (label === 'Reports') return <BarChart3 {...p} />
   if (label === 'SQL Accounting') return <ShoppingCart {...p} />
   if (label === 'SLA') return <Shield {...p} />
   if (label === 'Portal Users') return <Users {...p} />
   if (label === 'Settings') return <Settings {...p} />
+  if (label === 'Users and Roles') return <Shield {...p} />
+  if (label === 'Audit log') return <ClipboardList {...p} />
   if (label === 'Sync Conflicts') return <SlidersHorizontal {...p} />
   return <Package {...p} />
 }
@@ -194,7 +200,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(activeSection ? [activeSection] : []))
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null)
-  const draftLeadCount = useOperationsStore(s => s.leads.filter(l => l.status === 'Draft').length) * (useMasterStore(m => m.flags.C) ? 1 : 0)
+  const draftLeadCount = useOperationsStore(s => s.leads.filter(l => l.status === 'Draft' || l.status === 'Manual').length) * (useMasterStore(m => m.flags.C) ? 1 : 0)
 
   useEffect(() => {
     try {
@@ -209,8 +215,13 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
     setMobileOpen(false)
   }, [pathname, activeSection])
   useEffect(() => {
-    if (!canOpenPath(user.role, pathname)) router.replace(homeForRole(user.role))
+    if (user.role === 'portal' && !canOpenPath(user.role, pathname)) router.replace(homeForRole(user.role))
   }, [pathname, router, user.role])
+  useEffect(() => {
+    const t = setTimeout(startAuditWatchers, 800)
+    return () => clearTimeout(t)
+  }, [])
+  const allowed = canOpenPath(user.role, pathname)
 
   const toggleCollapsed = () => {
     const next = !collapsed
@@ -263,7 +274,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
                           <li key={item.href}>
                             <Link href={item.href} className={`nav-link ${activeItem?.href === item.href ? 'active' : ''}`} aria-current={activeItem?.href === item.href ? 'page' : undefined} tabIndex={isOpen ? 0 : -1}>
                               <NavIcon label={item.label} /><span className="nav-label">{item.label}</span>
-                              {item.label === 'Pending intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
+                              {item.label === 'Email intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
                             </Link>
                           </li>
                         ))}
@@ -282,7 +293,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
                   <Link key={item.href} href={item.href} aria-label={item.label} className={`nav-link ${activeItem?.href === item.href ? 'active' : ''}`}
                     onMouseEnter={e => showTip(e, item.label)} onMouseLeave={() => setTip(null)} onFocus={e => showTip(e, item.label)} onBlur={() => setTip(null)}>
                     <NavIcon label={item.label} />
-                    {item.label === 'Pending intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
+                    {item.label === 'Email intake' && draftLeadCount > 0 && <b className="count">{draftLeadCount}</b>}
                   </Link>
                 ))}
               </div>
@@ -309,14 +320,15 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
             ))}
           </nav>
           <div className="top-actions">
-            <Link href="/intake" className="icon-button" aria-label={`Notifications${draftLeadCount ? `, ${draftLeadCount} pending` : ''}`}>
+            <RoleSwitcher />
+            <Link href="/communication/intake" className="icon-button" aria-label={`Notifications${draftLeadCount ? `, ${draftLeadCount} pending` : ''}`}>
               <Bell size={18} />{draftLeadCount > 0 && <span className="dot-badge">{draftLeadCount}</span>}
             </Link>
             <ThemeToggle />
             <span className="avatar sm" aria-hidden="true" style={{ marginLeft: 4 }}>{initials(user.name)}</span>
           </div>
         </header>
-        {children}
+        {allowed ? children : <AccessDenied />}
       </main>
     </div>
   )

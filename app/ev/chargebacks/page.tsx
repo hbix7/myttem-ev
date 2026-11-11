@@ -1,2 +1,2 @@
-import { ChargebacksPage } from '@/components/ev-operations'
-export default ChargebacksPage
+import { ClaimsPage } from '@/components/claims'
+export default ClaimsPage

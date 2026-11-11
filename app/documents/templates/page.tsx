@@ -1,6 +1,7 @@
 'use client'
 import { AppShell, PageHeader, StatusPill } from '@/components/shared'
 import { EV_TEMPLATES } from '@/lib/evdocs'
+import { PdfTemplateEditor } from '@/components/pdf-template-editor'
 
 export default function TemplatesPage() {
   return (
@@ -23,6 +24,9 @@ export default function TemplatesPage() {
             </tbody>
           </table>
         </section>
+        <h2 style={{ fontSize: 16, margin: '8px 0 0' }}>PDF layout</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Header, terms and footer used on every downloaded PDF.</p>
+        <PdfTemplateEditor />
       </main>
     </AppShell>
   )

@@ -9,7 +9,10 @@ import { useStore } from '@/lib/store'
 import { useCommercialStore, type Invoice, type InvoiceStatus } from '@/lib/store/commercial'
 import { dispatch } from '@/lib/messaging'
 import { can } from '@/lib/rbac'
-import { downloadInvoicePdf, E_INVOICE_NOTE } from '@/lib/invoicing'
+import { E_INVOICE_NOTE } from '@/lib/invoicing'
+import { downloadInvoicePdf } from '@/lib/pdf'
+import { invoiceProfit } from '@/lib/profit'
+import { useCan } from '@/components/access'
 
 const tabs: ('All' | InvoiceStatus)[] = ['All', 'Draft', 'Sent for sign-off', 'Signed off', 'Paid', 'Invoiced']
 const steps: InvoiceStatus[] = ['Draft', 'Sent for sign-off', 'Signed off', 'Paid', 'Invoiced']
@@ -64,6 +67,8 @@ export function InvoiceDetail({ id }: { id: string }) {
   const role = useStore(s => s.users.find(u => u.id === s.currentUserId)!.role)
   const job = useStore(s => s.jobs.find(j => j.id === invoice?.jobId))
   const settings = useStore(s => s.settings)
+  const showProfit = useCan('profit', 'view')
+  const profit = invoice ? invoiceProfit(invoice, items) : { cost: 0, profit: 0, margin: 0, revenue: 0 }
   const [signedBy, setSignedBy] = useState('')
   if (!hydrated) return null
   if (!invoice) return <AppShell><EmptyState title="Invoice not found" helper="Return to the invoice list." action={<Link className="button secondary" href="/invoices">Back to invoices</Link>} /></AppShell>
@@ -113,10 +118,17 @@ export function InvoiceDetail({ id }: { id: string }) {
                 <tr><td colSpan={3}><strong>Total (incl. SST)</strong></td><td><strong><Price amount={invoice.total} /></strong></td></tr>
               </tfoot>
             </table>
+            {showProfit && (
+              <div className="profit-card" aria-label="Estimated profit, owner only">
+                <div><small>Estimated cost</small><strong><Price amount={profit.cost} /></strong></div>
+                <div><small>Estimated profit</small><strong><Price amount={profit.profit} /></strong></div>
+                <div><small>Margin</small><strong>{profit.margin}%</strong></div>
+              </div>
+            )}
           </section>
           <aside className="card">
             <h2>Next step</h2>
-            <button className="button secondary full" onClick={() => downloadInvoicePdf(invoice, items, settings.sstRate)}><Download size={15} />Download PDF</button>
+            <button className="button secondary full" onClick={async () => { toast.success(`Saved ${await downloadInvoicePdf(invoice)}`) }}><Download size={15} />Download PDF</button>
             <p className="muted">Invoices are exported to SQL Accounting in batches. {E_INVOICE_NOTE}</p>
             <div className="stack">
               <div className="approval-card"><strong>SQL Accounting</strong><ExportChip invoice={invoice} /></div>

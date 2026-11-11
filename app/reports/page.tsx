@@ -9,8 +9,9 @@ import { useCommercialStore } from '@/lib/store/commercial'
 import { buildPdfDataUrl, downloadDataUrl, downloadXlsx, type Cell } from '@/lib/export'
 import { computeKpis, technicianUtilisation, volumeByType, weeklyVolume } from '@/lib/metrics'
 import { slaInfo } from '@/lib/selectors'
+import { OwnerSummary } from '@/components/owner-summary'
 
-const tabs = ['Job volume', 'Technician utilisation', 'Response-time warnings', 'Jobs pending invoice'] as const
+const tabs = ['Business summary', 'Job volume', 'Technician utilisation', 'Response-time warnings', 'Jobs pending invoice'] as const
 type Tab = (typeof tabs)[number]
 
 export default function ReportsPage() {
@@ -30,6 +31,7 @@ export default function ReportsPage() {
   const customerName = (id: string) => customers.find(c => c.id === id)?.name ?? ''
 
   const data = (): { header: string[]; rows: Cell[][] } => {
+    if (tab === 'Business summary') return { header: ['Month', 'Profit'], rows: [] }
     if (tab === 'Job volume') return { header: ['Week', 'Jobs created'], rows: weeks.map(w => [w.label, w.count]) }
     if (tab === 'Technician utilisation') return { header: ['Technician', 'Total jobs', 'Open jobs', 'Capacity', 'Utilisation %'], rows: util.map(u => [u.user.name, u.total, u.open, u.capacity, u.pct]) }
     if (tab === 'Response-time warnings') return { header: ['Job', 'Subject', 'SLA state', 'Time'], rows: warned.map(({ job, info }) => [job.jobNo, job.subject, info.state, info.label]) }
@@ -45,10 +47,11 @@ export default function ReportsPage() {
 
   return (
     <AppShell crumb="Reports">
-      <PageHeader title="Reports" crumb="Reports" action={<><button className="button secondary" onClick={() => exportAs('xlsx')}><Download size={15} />Excel</button><button className="button secondary" onClick={() => exportAs('pdf')}><Download size={15} />PDF</button></>} />
+      <PageHeader title="Reports" crumb="Reports" action={tab === 'Business summary' ? undefined : <><button className="button secondary" onClick={() => exportAs('xlsx')}><Download size={15} />Excel</button><button className="button secondary" onClick={() => exportAs('pdf')}><Download size={15} />PDF</button></>} />
       <section className="content">
         <div className="tabs" role="tablist">{tabs.map(t => <button role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} key={t} onClick={() => setTab(t)}>{t}</button>)}</div>
-        <div className="report-card">
+        {tab === 'Business summary' && <OwnerSummary />}
+        {tab !== 'Business summary' && <div className="report-card">
           {tab === 'Job volume' && (
             <>
               <h2>Job volume by week</h2>
@@ -80,7 +83,7 @@ export default function ReportsPage() {
               {!k.pendingInvoice.length && <p className="muted">Every completed job has been invoiced.</p>}
             </>
           )}
-        </div>
+        </div>}
       </section>
     </AppShell>
   )

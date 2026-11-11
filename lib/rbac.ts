@@ -1,4 +1,5 @@
 import type { Role } from './types'
+import { canViewPath } from './permissions'
 
 export type Entity =
   | 'users' | 'dropdowns' | 'customer' | 'site' | 'asset' | 'item' | 'ratecard' | 'job' | 'checklist' | 'jobsheet'
@@ -48,25 +49,28 @@ const all: Role[] = ['sysadmin', 'admin', 'owner']
 export const nav: NavItem[] = [
   { section: 'Overview', label: 'Dashboard', href: '/', roles: all },
   { section: 'Work Management', label: 'Jobs', href: '/jobs', roles: ['admin', 'owner'] },
-  { section: 'Work Management', label: 'Scheduler', href: '/scheduler', roles: ['admin'] },
-  { section: 'Work Management', label: 'Pending intake', href: '/intake', roles: ['admin'], flag: 'C' },
+  { section: 'Work Management', label: 'Scheduler', href: '/scheduler', roles: ['admin', 'owner'] },
   { section: 'Commercial', label: 'Quotations', href: '/quotations', roles: ['admin', 'owner'] },
   { section: 'Commercial', label: 'Invoices', href: '/invoices', roles: ['admin', 'owner'] },
   { section: 'EV Programme', label: 'EV pipeline', href: '/ev/pipeline', roles: ['admin', 'owner'] },
   { section: 'EV Programme', label: 'EV deadlines', href: '/ev/deadlines', roles: ['admin', 'owner'] },
   { section: 'EV Programme', label: 'EV chargebacks', href: '/ev/chargebacks', roles: ['admin', 'owner'] },
   { section: 'EV Programme', label: 'EV conversion', href: '/ev/conversion', roles: ['admin', 'owner'] },
-  { section: 'Documents', label: 'Document templates', href: '/documents/templates', roles: ['sysadmin', 'admin'] },
-  { section: 'Documents', label: 'Generated documents', href: '/documents/generated', roles: ['sysadmin', 'admin'] },
+  { section: 'Documents', label: 'PDF templates', href: '/documents/templates', roles: ['sysadmin', 'admin', 'owner'] },
+  { section: 'Documents', label: 'Generated documents', href: '/documents/generated', roles: ['sysadmin', 'admin', 'owner'] },
   { section: 'Directory', label: 'Customers', href: '/customers', roles: ['sysadmin', 'admin'] },
   { section: 'Directory', label: 'Master Data', href: '/master/items', roles: ['sysadmin', 'admin'] },
-  { section: 'Communication', label: 'Communication', href: '/communication/notifications', roles: ['admin'] },
+  { section: 'Communication', label: 'WhatsApp inbox', href: '/communication/whatsapp', roles: ['admin', 'owner'], flag: 'C' },
+  { section: 'Communication', label: 'Email intake', href: '/communication/intake', roles: ['admin', 'owner'] },
+  { section: 'Communication', label: 'Notifications', href: '/communication/notifications', roles: ['admin', 'owner'] },
   { section: 'Insights', label: 'Reports', href: '/reports', roles: all },
   { section: 'Administration', label: 'Sync Conflicts', href: '/sync-conflicts', roles: ['admin'] },
   { section: 'Administration', label: 'SQL Accounting', href: '/integrations/sql', roles: ['admin'] },
   { section: 'Administration', label: 'SLA', href: '/admin/sla', roles: ['sysadmin', 'admin'] },
   { section: 'Administration', label: 'Portal Users', href: '/admin/portal-users', roles: ['sysadmin', 'admin'] },
-  { section: 'Administration', label: 'Settings', href: '/settings', roles: ['sysadmin', 'admin'] },
+  { section: 'Administration', label: 'Settings', href: '/settings', roles: ['sysadmin', 'admin', 'owner'] },
+  { section: 'Administration', label: 'Users and Roles', href: '/admin/users', roles: ['sysadmin', 'owner'] },
+  { section: 'Administration', label: 'Audit log', href: '/admin/audit', roles: ['sysadmin', 'owner'] },
 ]
 
 /* Owner sees the approval queue first, so Commercial moves ahead of Work Management. */
@@ -76,15 +80,7 @@ export function sectionOrder(role: Role, sections: string[]) {
   return [...sections].sort((a, b) => rank(a) - rank(b))
 }
 
-/* Routes a role may open on desktop. Anything else redirects home. */
+/* Routes a role may open. Anything else shows Access denied. */
 export function canOpenPath(role: Role, pathname: string) {
-  if (role === 'technician') return pathname.startsWith('/tech')
-  if (role === 'portal') return pathname.startsWith('/portal')
-  const extra = ['/jobs/new', '/quotations/new', '/sites', '/assets', '/master', '/communication', '/book']
-  if (pathname.startsWith('/book')) return true
-  const hit = nav.filter(n => n.href !== '/' && pathname.startsWith(n.href.split('/').slice(0, 2).join('/')) && n.roles.includes(role))
-  if (pathname === '/') return nav[0].roles.includes(role)
-  if (hit.length) return true
-  if (role === 'sysadmin') return ['/customers', '/sites', '/assets', '/master', '/documents', '/reports', '/admin', '/settings'].some(p => pathname.startsWith(p))
-  return role === 'admin' && extra.some(p => pathname.startsWith(p))
+  return canViewPath(role, pathname)
 }
