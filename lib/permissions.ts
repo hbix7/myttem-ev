@@ -11,7 +11,7 @@ export interface PermModule { id: string; label: string; group: string; paths: s
 export const PERM_MODULES: PermModule[] = [
   { id: 'dashboard', label: 'Dashboard', group: 'Overview', paths: ['/'] },
   { id: 'jobs', label: 'Jobs and job sheets', group: 'Work Management', paths: ['/jobs', '/tech'] },
-  { id: 'scheduler', label: 'Scheduler', group: 'Work Management', paths: ['/scheduler', '/intake'] },
+  { id: 'scheduler', label: 'Scheduler', group: 'Work Management', paths: ['/scheduler'] },
   { id: 'sla', label: 'SLA settings', group: 'Work Management', paths: ['/admin/sla'] },
   { id: 'quotations', label: 'Quotations', group: 'Sales', paths: ['/quotations'] },
   { id: 'invoices', label: 'Invoices', group: 'Sales', paths: ['/invoices', '/integrations'] },
@@ -19,7 +19,7 @@ export const PERM_MODULES: PermModule[] = [
   { id: 'customers', label: 'Customers', group: 'Inventory', paths: ['/customers'] },
   { id: 'ev', label: 'EV pipeline and deadlines', group: 'EV', paths: ['/ev/pipeline', '/ev/deadlines', '/ev/conversion'] },
   { id: 'claims', label: 'EV chargeback claims', group: 'EV', paths: ['/ev/chargebacks'] },
-  { id: 'communication', label: 'Communication', group: 'Communication', paths: ['/communication', '/sync-conflicts'] },
+  { id: 'communication', label: 'Communication', group: 'Communication', paths: ['/communication', '/intake', '/sync-conflicts'] },
   { id: 'reports', label: 'Reports', group: 'Insights', paths: ['/reports'] },
   { id: 'profit', label: 'Profit figures', group: 'Insights', paths: [] },
   { id: 'templates', label: 'PDF templates', group: 'Settings', paths: ['/documents'] },

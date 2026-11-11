@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Bell, BarChart3, CalendarClock, Check, ChevronDown, ChevronRight, ClipboardList, Database, Download, FileText, Inbox, LayoutDashboard,
-  LogOut, Menu, MessageSquare, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, Shield, SlidersHorizontal, Sun, Users, Wrench, X, Zap, ShoppingCart, FolderOpen, Briefcase,
+  LogOut, Menu, MessageCircle, MessageSquare, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, Shield, SlidersHorizontal, Sun, Users, Wrench, X, Zap, ShoppingCart, FolderOpen, Briefcase,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { useFieldStore } from '@/lib/store/field'
@@ -163,6 +163,7 @@ function NavIcon({ label }: { label: string }) {
   if (label === 'Jobs') return <Briefcase {...p} />
   if (label === 'Scheduler') return <CalendarClock {...p} />
   if (label === 'Pending intake') return <Inbox {...p} />
+  if (label === 'WhatsApp inbox') return <MessageCircle {...p} />
   if (label === 'Quotations') return <FileText {...p} />
   if (label === 'Invoices') return <Receipt {...p} />
   if (label.startsWith('EV')) return <Zap {...p} />
@@ -319,7 +320,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
           </nav>
           <div className="top-actions">
             <RoleSwitcher />
-            <Link href="/intake" className="icon-button" aria-label={`Notifications${draftLeadCount ? `, ${draftLeadCount} pending` : ''}`}>
+            <Link href="/communication/intake" className="icon-button" aria-label={`Notifications${draftLeadCount ? `, ${draftLeadCount} pending` : ''}`}>
               <Bell size={18} />{draftLeadCount > 0 && <span className="dot-badge">{draftLeadCount}</span>}
             </Link>
             <ThemeToggle />

@@ -6,15 +6,15 @@ import { evOnScheduled, createEvJob } from '@/lib/ev'
 import { LOCKED, checkPlacement, dayOf, findTechForSlot, fmtDate, stamp, time12to24, timeOf, type TechAvailability, type Violation } from '@/lib/scheduling'
 import { getNow } from '@/lib/clock'
 import { dispatch } from '@/lib/messaging'
-import { useWhatsAppStore } from '@/lib/store/whatsapp'
-import { normalizePhone, type InboundMessage } from '@/lib/whatsapp'
+import { useWhatsAppStore, type WaMessage } from '@/lib/store/whatsapp'
+import { normalizePhone, parseTemplate, type InboundMessage } from '@/lib/whatsapp'
 
 type LeadStatus = 'Draft' | 'Confirmed' | 'Discarded' | 'Manual'
-type Lead = { id:string; raw:string; status:LeadStatus; customerName:string; phone:string; address:string; vehicleModel:string; chargerModel:string; preferredDate:string; jobId?:string; kind:'whatsapp'|'voice'|'text'|'image'|'pdf'|'other'; duration?:string; from?:string; fileName?:string; receivedAt?:string; wamid?:string }
+type Lead = { id:string; raw:string; status:LeadStatus; customerName:string; phone:string; address:string; vehicleModel:string; chargerModel:string; preferredDate:string; jobId?:string; kind:'email'; subject?:string; from?:string; receivedAt?:string }
 type Availability = { date:string; technicianId:string; maxInstalls:number; booked:number }
 export type ScheduleResult = { ok:true; overridden:boolean } | { ok:false; reason:'forbidden'|'offline'|'missing'|'locked'|'violations'|'reason-required'|'unavailable'; message:string; violations?:Violation[] }
-type OperationsState = { availability:Availability[]; techAvailability:Record<string,TechAvailability>; leads:Lead[]; conflictSimulation:boolean; scheduleJob:(jobId:string, technicianId:string, date:string, time:string, overrideReason?:string)=>ScheduleResult; toggleDayOff:(technicianId:string, date:string)=>ScheduleResult; selfServiceBook:(token:string, date:string, time12:string)=>ScheduleResult; confirmLead:(id:string, fields:Partial<Lead>)=>string|undefined; discardLead:(id:string)=>void; addLead:(lead:Omit<Lead,'id'>)=>string; ingestInbound:(messages:InboundMessage[])=>IngestSummary; toggleConflictSimulation:()=>void }
-export type IngestSummary = { drafts:number; manual:number; replies:number; duplicates:number }
+type OperationsState = { availability:Availability[]; techAvailability:Record<string,TechAvailability>; leads:Lead[]; conflictSimulation:boolean; scheduleJob:(jobId:string, technicianId:string, date:string, time:string, overrideReason?:string)=>ScheduleResult; toggleDayOff:(technicianId:string, date:string)=>ScheduleResult; selfServiceBook:(token:string, date:string, time12:string)=>ScheduleResult; confirmLead:(id:string, fields:Partial<Lead>)=>string|undefined; discardLead:(id:string)=>void; addLead:(lead:Omit<Lead,'id'>)=>string; receiveEmail:(from:string,subject:string,body:string)=>'draft'|'manual'; ingestInbound:(messages:InboundMessage[])=>IngestSummary; toggleConflictSimulation:()=>void }
+export type IngestSummary = { jobs:number; messages:number; duplicates:number }
 const dates = Array.from({length:14},(_,i)=>{const d=new Date('2026-11-03T00:00:00+08:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10)})
 const techs=['u4','u5','u6']
 const availability:Availability[] = dates.flatMap((date,di)=>techs.map((technicianId,ti)=>({date,technicianId,maxInstalls:2,booked:(di===1&&ti===0)||(di===4&&ti===1)||(di===6&&ti===2)?2:((di+ti)%3===0?1:0)})))
@@ -27,9 +27,9 @@ const isOnline=()=>useStore.getState().settings.deviceOnline&&(typeof navigator=
 const currentRole=()=>{const s=useStore.getState();return s.users.find(u=>u.id===s.currentUserId)?.role}
 const note=(jobId:string,event:string,comment?:string)=>useStore.setState(s=>({history:[...s.history,{id:crypto.randomUUID(),jobId,userId:s.currentUserId,event,comment,at:getNow().toISOString()}]}))
 const leads:Lead[]=[
-{id:'lead-1',kind:'whatsapp',status:'Draft',raw:'Customer Name: Nurul Huda / Phone: 013-8889900 / Address: Cheras / Vehicle Model: Proton e.MAS 7 / Charger Model: 7kW AC / Preferred Assessment Date: 12/11/2026',customerName:'Nurul Huda',phone:'013-8889900',address:'Cheras',vehicleModel:'Proton e.MAS 7',chargerModel:'7kW AC',preferredDate:'12/11/2026'},
-{id:'lead-2',kind:'whatsapp',status:'Draft',raw:'Customer Name: Daniel Tan / Phone: 012-4442211 / Address: Puchong / Vehicle Model: Zeekr-style vehicle / Charger Model: 7kW AC / Preferred Assessment Date: 14/11/2026',customerName:'Daniel Tan',phone:'012-4442211',address:'Puchong',vehicleModel:'Zeekr-style vehicle',chargerModel:'7kW AC',preferredDate:'14/11/2026'},
-{id:'lead-3',kind:'voice',status:'Manual',raw:'Voice note 0:42',customerName:'',phone:'',address:'',vehicleModel:'',chargerModel:'',preferredDate:'',duration:'0:42'}]
+{id:'lead-1',kind:'email',status:'Draft',from:'nurul.huda@example.com',subject:'EV charger assessment request',receivedAt:'2026-11-03T08:42:00+08:00',raw:'Customer Name: Nurul Huda\nPhone: 013-8889900\nAddress: Cheras\nVehicle Model: Proton e.MAS 7\nCharger Model: 7kW AC\nPreferred Assessment Date: 12/11/2026',customerName:'Nurul Huda',phone:'013-8889900',address:'Cheras',vehicleModel:'Proton e.MAS 7',chargerModel:'7kW AC',preferredDate:'12/11/2026'},
+{id:'lead-2',kind:'email',status:'Draft',from:'daniel.tan@example.com',subject:'Home charger quote',receivedAt:'2026-11-03T09:10:00+08:00',raw:'Customer Name: Daniel Tan\nPhone: 012-4442211\nAddress: Puchong\nVehicle Model: Zeekr-style vehicle\nCharger Model: 7kW AC\nPreferred Assessment Date: 14/11/2026',customerName:'Daniel Tan',phone:'012-4442211',address:'Puchong',vehicleModel:'Zeekr-style vehicle',chargerModel:'7kW AC',preferredDate:'14/11/2026'},
+{id:'lead-3',kind:'email',status:'Manual',from:'info@greenpark-condo.example',subject:'Charging bays for our condominium',receivedAt:'2026-11-03T10:05:00+08:00',raw:'Hi, our management committee is looking at EV charging bays for the visitor car park. Could someone call us to discuss options?',customerName:'',phone:'',address:'',vehicleModel:'',chargerModel:'',preferredDate:''}]
 export const useOperationsStore=create<OperationsState>()(persist((set,get)=>({availability,techAvailability,leads,conflictSimulation:false,toggleConflictSimulation:()=>set(s=>({conflictSimulation:!s.conflictSimulation})),scheduleJob:(jobId,technicianId,date,time,overrideReason)=>{
 const core=useStore.getState()
 if(currentRole()!=='admin')return {ok:false,reason:'forbidden',message:'Only admins can schedule jobs. Technicians cannot reschedule.'}
@@ -65,22 +65,31 @@ core.updateJob(installId,{technicianId:tech.id,scheduledAt:stamp(date,time),stat
 note(installId,'Customer self-service booking',`Booked via link for ${fmtDate(date)} ${time}. Limits applied, no override.`)
 evOnScheduled(installId)
 return {ok:true,overridden:false}},
-confirmLead:(id,fields)=>{const lead=get().leads.find(l=>l.id===id);if(!lead)return;const merged={...lead,...fields};const jobId=createEvJob({principalId:'p3',customerName:merged.customerName||'WhatsApp customer',phone:merged.phone,address:merged.address,vehicle:merged.vehicleModel,chargerModel:merged.chargerModel,channel:'WhatsApp',remarks:`${merged.raw}${merged.preferredDate?`\nPreferred assessment date: ${merged.preferredDate}`:''}`});set(s=>({leads:s.leads.map(l=>l.id===id?{...l,...merged,status:'Confirmed',jobId}:l)}));return jobId},discardLead:id=>set(s=>({leads:s.leads.map(l=>l.id===id?{...l,status:'Discarded'}:l)})),addLead:lead=>{const id=crypto.randomUUID();set(s=>({leads:[{...lead,id},...s.leads]}));return id},
+confirmLead:(id,fields)=>{const lead=get().leads.find(l=>l.id===id);if(!lead)return;const merged={...lead,...fields};const jobId=createEvJob({principalId:'p3',customerName:merged.customerName||'Email customer',phone:merged.phone,address:merged.address,vehicle:merged.vehicleModel,chargerModel:merged.chargerModel,channel:lead.kind==='email'?'Email':'WhatsApp',remarks:`${merged.raw}${merged.preferredDate?`\nPreferred assessment date: ${merged.preferredDate}`:''}`});set(s=>({leads:s.leads.map(l=>l.id===id?{...l,...merged,status:'Confirmed',jobId}:l)}));return jobId},discardLead:id=>set(s=>({leads:s.leads.map(l=>l.id===id?{...l,status:'Discarded'}:l)})),addLead:lead=>{const id=crypto.randomUUID();set(s=>({leads:[{...lead,id},...s.leads]}));return id},
+receiveEmail:(from,subject,body)=>{const t=parseTemplate(body);const base={id:crypto.randomUUID(),kind:'email' as const,from,subject,raw:body,receivedAt:new Date().toISOString()}
+const lead:Lead=t?{...base,status:'Draft',...t}:{...base,status:'Manual',customerName:'',phone:'',address:'',vehicleModel:'',chargerModel:'',preferredDate:''}
+set(s=>({leads:[lead,...s.leads]}));return t?'draft':'manual'},
 ingestInbound:messages=>{
-const summary:IngestSummary={drafts:0,manual:0,replies:0,duplicates:0}
-const wa=useWhatsAppStore.getState();const core=useStore.getState()
-const added:Lead[]=[]
+const summary:IngestSummary={jobs:0,messages:0,duplicates:0}
 for(const m of messages){
-if(wa.seenMessageIds.includes(m.id)||get().leads.some(l=>l.wamid===m.id)||added.some(l=>l.wamid===m.id)){summary.duplicates++;continue}
-useWhatsAppStore.getState().markSeen(m.id)
-const base={from:m.from,wamid:m.id,receivedAt:m.at}
-if(m.template){added.push({id:crypto.randomUUID(),status:'Draft',kind:'whatsapp',raw:m.text??'',...base,...m.template});summary.drafts++;continue}
-const customer=m.kind==='text'?core.customers.find(c=>normalizePhone(c.phone)===normalizePhone(m.from)):undefined
-const job=customer?core.jobs.filter(j=>j.customerId===customer.id).sort((a,b)=>Number(a.status==='Closed')-Number(b.status==='Closed')||b.createdAt.localeCompare(a.createdAt))[0]:undefined
-if(job){useWhatsAppStore.getState().addReply({id:crypto.randomUUID(),jobId:job.id,message:m.text??'',at:m.at,responded:false,from:m.from,wamid:m.id});summary.replies++;continue}
-const label={text:m.text??'',image:m.text?`Image: ${m.text}`:'Image received',pdf:`PDF: ${m.fileName??'document'}`,voice:'Voice note',other:m.fileName?`File: ${m.fileName}`:'Unsupported message'}[m.kind]
-added.push({id:crypto.randomUUID(),status:'Manual',kind:m.kind==='voice'?'voice':m.kind,raw:label,customerName:m.name??'',phone:m.from,address:'',vehicleModel:'',chargerModel:'',preferredDate:'',fileName:m.fileName,...base})
-summary.manual++}
-if(added.length)set(s=>({leads:[...added,...s.leads]}))
-return summary}}),{name:'myttem-operations',version:2,migrate:()=>({}) as never}))
+const wa=useWhatsAppStore.getState()
+if(wa.seenMessageIds.includes(m.id)){summary.duplicates++;continue}
+wa.markSeen(m.id)
+const text={text:m.text??'',image:m.text?`Image: ${m.text}`:'Image received',pdf:`PDF: ${m.fileName??'document'}`,voice:'Voice note',other:m.fileName?`File: ${m.fileName}`:'Unsupported message'}[m.kind]
+const message:WaMessage={id:m.id,direction:'in',text,at:m.at,kind:m.kind}
+const phone=normalizePhone(m.from)
+const existing=wa.conversations.find(c=>normalizePhone(c.phone)===phone)
+if(existing){wa.appendMessage(existing.id,message,{unread:true});summary.messages++;continue}
+const core=useStore.getState()
+const customer=core.customers.find(c=>normalizePhone(c.phone)===phone)
+const open=customer?core.jobs.filter(j=>j.customerId===customer.id&&j.status!=='Closed').sort((a,b)=>b.createdAt.localeCompare(a.createdAt))[0]:undefined
+const name=m.template?.customerName||customer?.name||m.name||`+${m.from}`
+let jobId=open?.id
+if(!jobId){
+jobId=createEvJob({principalId:'p3',customerName:name,phone:`+${m.from}`,address:m.template?.address??'',vehicle:m.template?.vehicleModel??'',chargerModel:m.template?.chargerModel??'',channel:'WhatsApp',subject:m.template?undefined:`WhatsApp: ${text.slice(0,60)||'new enquiry'}`,remarks:`${text}${m.template?.preferredDate?`\nPreferred assessment date: ${m.template.preferredDate}`:''}`})
+summary.jobs++
+}else{note(open!.id,'WhatsApp conversation linked',`Message from +${m.from} added to this job`);summary.messages++}
+useWhatsAppStore.getState().addConversation({id:crypto.randomUUID(),phone:m.from,name,jobId,unread:1,messages:[message]})
+}
+return summary}}),{name:'myttem-operations',version:3,migrate:()=>({}) as never}))
 export type {Lead, Availability}

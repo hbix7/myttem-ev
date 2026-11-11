@@ -1,9 +1,9 @@
 'use client'
 import { useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { Download, Plus, Upload } from 'lucide-react'
 import { AppShell, FilterBar, PageHeader, StatusPill } from '@/components/shared'
-import { ChannelStatusPanel } from '@/components/comms'
 import { Modal } from '@/components/kit'
 import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
@@ -154,7 +154,9 @@ export function SettingsScreen() {
       <PageHeader title="Settings" crumb="Settings" />
       <p className="page-intro">Confirmed values are editable by the administrator. Tenant: United Power Engineering.</p>
 
-      <ChannelStatusPanel />
+      <section className="card settings-block">
+        <div className="block-head"><div><h2>WhatsApp channel</h2><p className="muted">Provider, business number and credentials for the WhatsApp inbox.</p></div><Link className="button secondary" href="/settings/whatsapp">Open channel settings</Link></div>
+      </section>
 
       <section className="card settings-block">
         <h2>Quotation approval limit</h2>
