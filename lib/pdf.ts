@@ -73,11 +73,11 @@ function totals(doc: import('jspdf').jsPDF, W: number, y: number, rows: [string,
   return y + rows.length * 16 + 12
 }
 
-function lineRows(lines: { itemId: string; qty: number; unitPrice: number }[]) {
+function lineRows(lines: { itemId: string; qty: number; unitPrice: number; code?: string; description?: string }[]) {
   const items = useCommercialStore.getState().items
   return lines.map(l => {
     const it = items.find(x => x.id === l.itemId)
-    return [it?.code ?? l.itemId, it?.name ?? '', String(l.qty), rm(l.unitPrice), rm(l.qty * l.unitPrice)]
+    return [it?.code ?? l.code ?? l.itemId, it?.name ?? l.description ?? '', String(l.qty), rm(l.unitPrice), rm(l.qty * l.unitPrice)]
   })
 }
 

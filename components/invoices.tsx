@@ -107,9 +107,9 @@ export function InvoiceDetail({ id }: { id: string }) {
             <table>
               <thead><tr><th>Item</th><th>Qty</th><th>Unit price (excl. SST)</th><th>Amount (excl. SST)</th></tr></thead>
               <tbody>
-                {invoice.lines.map(l => {
+                {invoice.lines.map((l, i) => {
                   const item = items.find(x => x.id === l.itemId)
-                  return <tr key={l.itemId}><td>{item?.code} · {item?.name}</td><td>{l.qty}</td><td><Price amount={l.unitPrice} /></td><td><Price amount={l.qty * l.unitPrice} /></td></tr>
+                  return <tr key={`${l.itemId}-${i}`}><td>{item?.code ?? l.code ?? 'CUSTOM'} · {item?.name ?? l.description}</td><td>{l.qty}</td><td><Price amount={l.unitPrice} /></td><td><Price amount={l.qty * l.unitPrice} /></td></tr>
                 })}
               </tbody>
               <tfoot>

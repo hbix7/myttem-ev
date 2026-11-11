@@ -398,6 +398,21 @@ button.countdown:hover { background: var(--active); }
 .quote-line > select, .quote-line > input { min-width: 0; width: 100%; }
 .quote-line > span, .quote-line > strong { text-align: right; white-space: nowrap; }
 .quote-line .qty { text-align: right; }
+.quote-line.custom { grid-template-columns: 80px minmax(0, 1fr) minmax(90px, 120px) auto auto; }
+.quote-line.custom > select { grid-column: 1 / -1; }
+.quote-line.custom .quote-desc { grid-column: 1 / -1; }
+.quote-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.quote-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin-top: 12px; }
+.quote-meta label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; min-width: 0; }
+.quote-meta .field-input { width: 100%; }
+.quote-meta .quote-notes { grid-column: 1 / -1; }
+.quote-summary { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.quote-notes-text { margin: 12px 0; font-size: 13px; color: var(--muted-foreground); }
+.rate-body { display: flex; flex-direction: column; gap: 16px; padding: 0 24px 24px; min-width: 0; }
+.rate-body .filter-bar .field-input:first-child { flex: 1 1 240px; max-width: 360px; }
+.rate-input { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.rate-input .field-input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .quote-meta { grid-template-columns: minmax(0, 1fr); } }
 .card > label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; margin-bottom: 12px; }
 .card > label .field-input, .card > label select, .card > label input { width: 100%; }
 .card > .action-row { margin: 12px 0; }
