@@ -14,6 +14,8 @@ import { InboundSync } from '@/components/comms'
 import { getNow } from '@/lib/clock'
 import { runEvAutomation } from '@/lib/ev'
 import { nav, sectionOrder, canOpenPath, homeForRole, roleLabel } from '@/lib/rbac'
+import { startAuditWatchers } from '@/lib/store/audit'
+import { AccessDenied, RoleSwitcher } from '@/components/access'
 import { slaInfo } from '@/lib/selectors'
 import { buildPdfDataUrl, downloadCsv, downloadDataUrl, downloadXlsx } from '@/lib/export'
 import type { Job } from '@/lib/types'
@@ -134,7 +136,7 @@ function UserMenu() {
           <button role="menuitem" className="menu-item" onClick={() => { resetClock(); setOpen(false) }}>Reset clock</button>
           <button role="menuitem" className="menu-item" onClick={() => { useFieldStore.getState().toggleConflictSimulation(); setOpen(false); toast.success('Next offline sync will create a conflict') }}>Simulate sync conflict</button>
           <div className="menu-divider" />
-          <button role="menuitem" className="menu-item danger" onClick={() => { setOpen(false); toast('Log out is disabled in this demo') }}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: 'inherit', fontSize: 13, textTransform: 'none' }}><LogOut size={14} /> Log out</span></button>
+          <button role="menuitem" className="menu-item danger" onClick={() => { setOpen(false); router.push('/login') }}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: 'inherit', fontSize: 13, textTransform: 'none' }}><LogOut size={14} /> Log out</span></button>
         </div>
       )}
       <button className="user-block" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}>
@@ -173,6 +175,8 @@ function NavIcon({ label }: { label: string }) {
   if (label === 'SLA') return <Shield {...p} />
   if (label === 'Portal Users') return <Users {...p} />
   if (label === 'Settings') return <Settings {...p} />
+  if (label === 'Users and Roles') return <Shield {...p} />
+  if (label === 'Audit log') return <ClipboardList {...p} />
   if (label === 'Sync Conflicts') return <SlidersHorizontal {...p} />
   return <Package {...p} />
 }
@@ -209,8 +213,13 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
     setMobileOpen(false)
   }, [pathname, activeSection])
   useEffect(() => {
-    if (!canOpenPath(user.role, pathname)) router.replace(homeForRole(user.role))
+    if (user.role === 'portal' && !canOpenPath(user.role, pathname)) router.replace(homeForRole(user.role))
   }, [pathname, router, user.role])
+  useEffect(() => {
+    const t = setTimeout(startAuditWatchers, 800)
+    return () => clearTimeout(t)
+  }, [])
+  const allowed = canOpenPath(user.role, pathname)
 
   const toggleCollapsed = () => {
     const next = !collapsed
@@ -309,6 +318,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
             ))}
           </nav>
           <div className="top-actions">
+            <RoleSwitcher />
             <Link href="/intake" className="icon-button" aria-label={`Notifications${draftLeadCount ? `, ${draftLeadCount} pending` : ''}`}>
               <Bell size={18} />{draftLeadCount > 0 && <span className="dot-badge">{draftLeadCount}</span>}
             </Link>
@@ -316,7 +326,7 @@ export function AppShell({ children, crumb }: { children: React.ReactNode; crumb
             <span className="avatar sm" aria-hidden="true" style={{ marginLeft: 4 }}>{initials(user.name)}</span>
           </div>
         </header>
-        {children}
+        {allowed ? children : <AccessDenied />}
       </main>
     </div>
   )

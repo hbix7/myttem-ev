@@ -15,6 +15,7 @@ import { dispatch } from '@/lib/messaging'
 import { useMasterStore } from '@/lib/store/master'
 import { useWhatsAppStore } from '@/lib/store/whatsapp'
 import { toast } from 'sonner'
+import { downloadEvJobPdf } from '@/lib/pdf'
 
 const progress = ['Created', 'Assigned', 'In Progress', 'Completed', 'Invoiced', 'Closed']
 
@@ -70,7 +71,7 @@ export default function JobDetail() {
 
   return (
     <AppShell crumb={`Jobs > ${job.jobNo}`}>
-      <PageHeader title={job.subject} subtitle={`${job.jobNo} · ${customer?.name ?? ''}`} action={<Link href="/jobs" className="button secondary">Back to Jobs</Link>} />
+      <PageHeader title={job.subject} subtitle={`${job.jobNo} · ${customer?.name ?? ''}`} action={<div style={{ display: 'flex', gap: 8 }}>{job.ev && <button className="button secondary" onClick={async () => { toast.success(`Saved ${await downloadEvJobPdf(job)}`) }}>Download PDF</button>}<Link href="/jobs" className="button secondary">Back to Jobs</Link></div>} />
       <main className="content detail-layout">
         <section className="detail-main">
           <section className="header-card">

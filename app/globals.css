@@ -753,3 +753,45 @@ button.countdown:hover { background: var(--active); }
 .ev-form fieldset{border:1px solid var(--border,rgba(128,128,128,.3));border-radius:8px;padding:8px 12px}
 .check-row{display:flex;gap:8px;align-items:center}
 .countdown.done{opacity:.7}
+
+/* Roles, access and approval additions */
+.role-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); margin-right: 4px; }
+.role-switch select { height: 32px; padding: 0 28px 0 10px; font-size: 13px; }
+.denied { max-width: 440px; margin: 72px auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--muted-foreground); }
+.denied h1 { font-size: 22px; color: var(--foreground); margin: 0; }
+.denied p { margin: 0; line-height: 1.5; }
+.perm-grid th, .perm-grid td { text-align: center; }
+.perm-grid th:first-child, .perm-grid td:first-child { text-align: left; }
+.perm-group td { background: var(--hover); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--background); }
+.login-card { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow-card); }
+.login-card h1 { font-size: 22px; margin: 0; }
+.login-card label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; }
+.demo-accounts { display: flex; flex-direction: column; gap: 8px; }
+.demo-accounts button { text-align: left; display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--foreground); font-size: 13px; }
+.demo-accounts button:hover { background: var(--hover); }
+.claim-board { display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.claim-col { background: var(--hover); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
+.claim-col h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); margin: 0 0 2px; display: flex; justify-content: space-between; }
+.claim-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: left; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--foreground); }
+.claim-card:hover { border-color: var(--primary); }
+.claim-card small { color: var(--muted-foreground); }
+.drawer-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--card); border-left: 1px solid var(--border); z-index: 60; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; box-shadow: -12px 0 32px rgba(0,0,0,0.18); }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.timeline li { font-size: 13px; display: flex; flex-direction: column; }
+.timeline li small { color: var(--muted-foreground); }
+.profit-card { border: 1px dashed var(--border); border-radius: 10px; padding: 14px; display: flex; gap: 24px; flex-wrap: wrap; }
+.profit-card div { display: flex; flex-direction: column; gap: 2px; }
+.profit-card small { color: var(--muted-foreground); font-size: 12px; }
+.profit-card strong { font-size: 18px; }
+.tpl-layout { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
+@media (max-width: 800px) { .tpl-layout { grid-template-columns: 1fr; } }
+.tpl-list { display: flex; flex-direction: column; gap: 4px; }
+.tpl-list button { text-align: left; padding: 8px 12px; border-radius: var(--radius); border: 1px solid transparent; background: transparent; color: var(--foreground); font-size: 14px; }
+.tpl-list button[aria-current='true'] { background: var(--hover); border-color: var(--border); font-weight: 600; }
+.tpl-form { display: flex; flex-direction: column; gap: 12px; }
+.tpl-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; }
+.tpl-form textarea { min-height: 84px; padding: 8px 10px; border: 1px solid var(--input); border-radius: var(--radius); background: var(--card); color: var(--foreground); font: inherit; }
+.tpl-editor { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px; }
+.tpl-list button[aria-selected='true'], .tpl-list button.active { background: var(--hover); border-color: var(--border); font-weight: 600; }
+@media (max-width: 720px) { .tpl-editor { grid-template-columns: 1fr; } }
