@@ -25,6 +25,8 @@ export default function JobDetail() {
   const store = useStore()
   const quotes = useCommercialStore(s => s.quotations)
   const invoices = useCommercialStore(s => s.invoices)
+  const whatsappOn = useMasterStore(m => m.flags.C)
+  const allReplies = useWhatsAppStore(w => w.replies)
   const [tab, setTab] = useState<string>('overview')
   const [comment, setComment] = useState('')
   const [tech, setTech] = useState('')
@@ -46,8 +48,6 @@ export default function JobDetail() {
   const isEv = !!type?.isEv
   const jobQuotes = isEv ? quotes.filter(q => q.jobId === job.id) : []
   const jobInvoices = invoices.filter(i => i.jobId === job.id)
-  const whatsappOn = useMasterStore(m => m.flags.C)
-  const allReplies = useWhatsAppStore(w => w.replies)
   const jobReplies = allReplies.filter(r => r.jobId === job.id).sort((a, b) => b.at.localeCompare(a.at))
   const state = slaState(job, type)
   const stepIndex = progress.indexOf(job.status)
