@@ -24,7 +24,7 @@ export function downloadInvoicePdf(invoice: Invoice, items: RateItem[], sstRate:
     '',
     ...invoice.lines.map(l => {
       const item = items.find(x => x.id === l.itemId)
-      return `${item?.code ?? l.itemId}  ${item?.name ?? ''}  |  ${l.qty} x ${rm(l.unitPrice)} = ${rm(l.qty * l.unitPrice)} excl. SST`
+      return `${item?.code ?? l.code ?? l.itemId}  ${item?.name ?? l.description ?? ''}  |  ${l.qty} x ${rm(l.unitPrice)} = ${rm(l.qty * l.unitPrice)} excl. SST`
     }),
     '',
     `Subtotal (excl. SST): ${rm(invoice.subtotal)}`,
