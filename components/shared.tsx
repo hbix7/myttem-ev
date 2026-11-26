@@ -59,7 +59,7 @@ const subtitles: Record<string, string> = {
   Scheduler: 'Assign technicians and balance daily capacity.',
   Quotations: 'Draft, approve and follow up customer quotations.',
   Invoices: 'Raise invoices, get customer sign-off and export them to SQL Accounting.',
-  'EV deadlines': 'Countdowns for each EV programme milestone.',
+  'EV deadlines': 'Countdowns for each EV job milestone.',
   'EV chargebacks': 'Invoiced, claimable and referral amounts per case.',
   'EV conversion': 'Quotations issued against installations completed.',
   Customers: 'Customer accounts, contacts and sites.',
@@ -155,7 +155,7 @@ function UserMenu() {
 
 /* ---------- Navigation ---------- */
 const sectionIcons: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
-  Overview: LayoutDashboard, 'Work Management': ClipboardList, Commercial: Receipt, 'EV Programme': Zap, Documents: FileText,
+  Overview: LayoutDashboard, 'Work Management': ClipboardList, Commercial: Receipt, 'EV Job': Zap, Documents: FileText,
   Directory: Users, Communication: MessageSquare, Insights: BarChart3, Administration: Settings,
 }
 function NavIcon({ label }: { label: string }) {

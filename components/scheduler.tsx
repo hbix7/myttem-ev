@@ -74,7 +74,7 @@ function Board() {
   const [hover, setHover] = useState<Hover | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [pending, setPending] = useState<PendingItem[] | null>(null)
-  const [manual, setManual] = useState<Job | null>(null)
+  const [manual, setManual] = useState<{ job: Job; teamId?: string; date?: string; time?: string } | null>(null)
   const [filters, setFilters] = useState({ type: '', size: '', principal: '', area: '' })
 
   const env: SchedEnv = useMemo(
@@ -237,7 +237,7 @@ function Board() {
                     <div className="sch-tags"><code>{j.jobNo}</code><span className={`slot-tag slot-${slot}`}>{SLOT_LABEL[slot]}</span>{chillis && <span className="slot-tag chillis">Chilli&apos;s</span>}</div>
                     <b>{j.subject}</b>
                     <small>{typeOf(j)?.name} · {site?.area || 'No area'} · {minutesOf(j, env) / 60}h</small>
-                    {canMove && <button className="button secondary sm" onClick={() => setManual(j)}><CalendarClock size={14} />Schedule</button>}
+                    {canMove && <button className="button secondary sm" onClick={() => setManual({ job: j })}><CalendarClock size={14} />Schedule</button>}
                   </div>
                 )
               })}
@@ -275,7 +275,13 @@ function Board() {
               ) : (
                 <WeekGrid
                   {...common} days={days} today={today}
-                  onDrop={(team, date) => { if (dragged) place(dragged.id, team, date, firstFreeTime(env, dragged, team, date).time) }}
+                  onDrop={(team, date) => {
+                    if (!dragged) return
+                    const job = dragged
+                    setDragId(null)
+                    setHover(null)
+                    setManual({ job, teamId: team.id, date, time: firstFreeTime(env, job, team, date).time })
+                  }}
                   onOpenDay={d => { setAnchor(d); setView('Day') }}
                 />
               )}
@@ -285,7 +291,7 @@ function Board() {
       </section>
 
       {pending && <OverrideDialog pending={pending} onCancel={() => setPending(null)} onConfirm={confirmOverride} />}
-      {manual && <ManualDialog env={env} job={manual} teams={teams} today={today} onCancel={() => setManual(null)} onSubmit={(team, date, time) => { setManual(null); place(manual.id, team, date, time) }} />}
+      {manual && <ManualDialog env={env} job={manual.job} teams={teams} today={today} initial={manual} onCancel={() => setManual(null)} onSubmit={(team, date, time) => { const id = manual.job.id; setManual(null); place(id, team, date, time) }} />}
     </AppShell>
   )
 }
@@ -502,15 +508,17 @@ function OverrideDialog({ pending, onCancel, onConfirm }: { pending: PendingItem
   )
 }
 
-function ManualDialog({ env, job, teams, today, onCancel, onSubmit }: { env: SchedEnv; job: Job; teams: Team[]; today: string; onCancel: () => void; onSubmit: (team: Team, date: string, time: string) => void }) {
+function ManualDialog({ env, job, teams, today, initial, onCancel, onSubmit }: { env: SchedEnv; job: Job; teams: Team[]; today: string; initial?: { teamId?: string; date?: string; time?: string }; onCancel: () => void; onSubmit: (team: Team, date: string, time: string) => void }) {
   const slot = slotOf(job, env.jobTypes)
   const win = env.scheduling.windows[slot]
-  const [teamId, setTeamId] = useState(teams[0]?.id ?? '')
-  const [date, setDate] = useState(today)
+  const [teamId, setTeamId] = useState(initial?.teamId ?? teams[0]?.id ?? '')
+  const [date, setDate] = useState(initial?.date ?? today)
   const team = teams.find(t => t.id === teamId)
-  const [time, setTime] = useState(win.start)
+  const [time, setTime] = useState(initial?.time ?? win.start)
   const times: string[] = []
   for (let t = toMin(win.start); t + win.minutes <= toMin(win.end); t += SLOT_MINUTES) times.push(fromMin(t))
+  if (!times.includes(time)) times.push(time)
+  times.sort()
   const violations = team && date ? checkTeamPlacement(env, job, team, date, time) : []
   return (
     <div className="modal-backdrop" onKeyDown={e => { if (e.key === 'Escape') onCancel() }}>
