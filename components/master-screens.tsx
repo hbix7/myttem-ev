@@ -24,33 +24,33 @@ export function ItemMasterScreen() {
   const items = useCommercialStore(s => s.items)
   const { addItem, updateItem } = useCommercialStore.getState()
   const [q, setQ] = useState('')
-  const [editing, setEditing] = useState<{ id?: string; code: string; name: string; type: 'Part' | 'Service'; unitPrice: string } | null>(null)
+  const [editing, setEditing] = useState<{ id?: string; code: string; name: string; type: 'Part' | 'Service'; unitPrice: string; isAdditional: boolean } | null>(null)
   const rows = items.filter(i => `${i.code} ${i.name} ${i.type}`.toLowerCase().includes(q.toLowerCase()))
   const save = () => {
     if (!editing) return
     const price = Number(editing.unitPrice)
     if (!editing.code.trim() || !editing.name.trim() || !(price >= 0) || editing.unitPrice === '') return toast.error('Item code, description and a valid unit price are required')
     if (items.some(i => i.code.toLowerCase() === editing.code.trim().toLowerCase() && i.id !== editing.id)) return toast.error('Item code already exists')
-    if (editing.id) updateItem(editing.id, { code: editing.code.trim(), name: editing.name.trim(), type: editing.type, unitPrice: price })
-    else addItem({ code: editing.code.trim(), name: editing.name.trim(), type: editing.type, unitPrice: price })
+    if (editing.id) updateItem(editing.id, { code: editing.code.trim(), name: editing.name.trim(), type: editing.type, unitPrice: price, isAdditional: editing.isAdditional })
+    else addItem({ code: editing.code.trim(), name: editing.name.trim(), type: editing.type, unitPrice: price, isAdditional: editing.isAdditional })
     toast.success(editing.id ? 'Item updated' : 'Item created')
     setEditing(null)
   }
   return (
     <AppShell crumb="Master Data > Items">
-      <PageHeader title="Item Master" crumb="Master Data > Items" action={<button className="button primary" onClick={() => setEditing({ code: '', name: '', type: 'Part', unitPrice: '' })}><Plus size={15} /> New item</button>} />
+      <PageHeader title="Item Master" crumb="Master Data > Items" action={<button className="button primary" onClick={() => setEditing({ code: '', name: '', type: 'Part', unitPrice: '', isAdditional: false })}><Plus size={15} /> New item</button>} />
       <p className="page-intro">Parts and services used on quotations and invoices. The unit price is the UPE own price excl. SST; principal rate cards are managed under Rate Cards.</p>
       <FilterBar search={q} onSearch={setQ}>{null}</FilterBar>
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Unit price (excl. SST)</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Unit price (excl. SST)</th><th>Flags</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {rows.map(i => (
               <tr key={i.id} className={i.active === false ? 'row-muted' : ''}>
-                <td>{i.code}</td><td>{i.name}</td><td>{i.type}</td><td>{money(i.prices.UPE)}</td>
+                <td>{i.code}</td><td>{i.name}</td><td>{i.type}</td><td>{money(i.prices.UPE)}</td><td>{i.isAdditional ? <StatusPill tone="amber">Additional</StatusPill> : null}</td>
                 <td><StatusPill>{i.active === false ? 'Inactive' : 'Active'}</StatusPill></td>
                 <td className="row-actions">
-                  <button className="button secondary sm" onClick={() => setEditing({ id: i.id, code: i.code, name: i.name, type: i.type as 'Part' | 'Service', unitPrice: String(i.prices.UPE) })}>Edit</button>
+                  <button className="button secondary sm" onClick={() => setEditing({ id: i.id, code: i.code, name: i.name, type: i.type as 'Part' | 'Service', unitPrice: String(i.prices.UPE), isAdditional: !!i.isAdditional })}>Edit</button>
                   <button className="button secondary sm" onClick={() => { updateItem(i.id, { active: i.active === false }); toast.success(i.active === false ? 'Item reactivated' : 'Item deactivated') }}>{i.active === false ? 'Activate' : 'Deactivate'}</button>
                 </td>
               </tr>
@@ -67,6 +67,7 @@ export function ItemMasterScreen() {
             <Field label="Description"><input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
             <Field label="Type"><select value={editing.type} onChange={e => setEditing({ ...editing, type: e.target.value as 'Part' | 'Service' })}><option>Part</option><option>Service</option></select></Field>
             <Field label="Unit price (RM, excl. SST)"><input type="number" min="0" step="0.01" value={editing.unitPrice} onChange={e => setEditing({ ...editing, unitPrice: e.target.value })} /></Field>
+            <label className="check-row"><input type="checkbox" checked={editing.isAdditional} onChange={e => setEditing({ ...editing, isAdditional: e.target.checked })} /> Additional item (forces the job to Big)</label>
           </div>
         )}
       </Modal>
@@ -344,7 +345,7 @@ export function AssetRegisterScreen() {
       let cu = cust.find(x => x.name.toLowerCase() === cn.toLowerCase())
       if (!cu) { cu = { id: crypto.randomUUID(), tenant_id: TENANT, name: cn, contact: '', phone: '', email: '', sqlAccCode: '', isCommercial: true }; cust.push(cu); c++ }
       let si = siteList.find(x => x.customerId === cu!.id && x.name.toLowerCase() === sn.toLowerCase())
-      if (!si) { si = { id: crypto.randomUUID(), tenant_id: TENANT, customerId: cu.id, name: sn, address: mapped(r, 'address') }; siteList.push(si); s++ }
+      if (!si) { si = { id: crypto.randomUUID(), tenant_id: TENANT, customerId: cu.id, name: sn, address: mapped(r, 'address'), postcode: '', area: '' }; siteList.push(si); s++ }
       const serial = mapped(r, 'serial'), type = mapped(r, 'type')
       if (type || serial) {
         if (serial && assetList.some(x => x.serialNo === serial)) continue

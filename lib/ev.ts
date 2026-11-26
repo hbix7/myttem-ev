@@ -116,7 +116,7 @@ export function createEvJob(input: NewEvInput) {
     customer = { id, tenant_id: 't-upe', name: input.customerName.trim(), contact: input.customerName.trim(), phone: input.phone, email: `${input.customerName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.')}@example.com`, sqlAccCode: `EV-${s.customers.length + 1}`, isCommercial: false } as typeof s.customers[number]
     siteId = crypto.randomUUID()
     const newSiteId = siteId
-    useStore.setState(st => ({ customers: [...st.customers, customer!], sites: [...st.sites, { id: newSiteId, tenant_id: 't-upe', customerId: customer!.id, name: 'Home site', address: input.address }] }))
+    useStore.setState(st => ({ customers: [...st.customers, customer!], sites: [...st.sites, { id: newSiteId, tenant_id: 't-upe', customerId: customer!.id, name: 'Home site', address: input.address, postcode: '', area: '' }] }))
   }
   const jobId = s.createJob({ subject: input.subject || `EV Assessment: ${input.vehicle || 'new lead'}`, customerId: customer.id, siteId, jobTypeId: 'jt3', channel: input.channel || 'Manual', principalId: input.principalId, remarks: input.remarks })
   core().updateJob(jobId, { ev: { status: 'Lead', at: { ack: nowIso() }, vehicle: input.vehicle, chargerModel: input.chargerModel, followUps: 0 } })

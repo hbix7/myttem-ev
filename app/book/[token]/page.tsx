@@ -4,79 +4,94 @@ import { useParams } from 'next/navigation'
 import { useHydrated } from '@/components/shared'
 import { useStore } from '@/lib/store'
 import { useOperationsStore } from '@/lib/store/operations'
-import { addDays, findTechForSlot, fmtDate, time12to24 } from '@/lib/scheduling'
+import { useSchedEnv } from '@/lib/use-sched-env'
+import { getNow } from '@/lib/clock'
+import { addDays, fmtDate, todayMy } from '@/lib/scheduling'
+import { suggestDates, type Rating } from '@/lib/suggest'
+import type { BookingOptions } from '@/lib/types'
 
-const SLOTS = ['9:30 AM', '11:30 AM', '2:00 PM', '4:00 PM']
-const FIRST_DAY = '2026-11-04'
+const RATING_COPY: Record<Rating, string> = { Recommended: 'Best fit', Possible: 'Available', 'Not available': 'Fully booked' }
 
 export default function BookingPage() {
   const { token } = useParams<{ token: string }>()
   const hydrated = useHydrated()
-  const jobs = useStore(s => s.jobs)
-  const customers = useStore(s => s.customers)
+  const env = useSchedEnv()
+  const submit = useOperationsStore(s => s.submitBooking)
   const principals = useStore(s => s.principals)
-  const parent = jobs.find(j => j.ev?.bookingToken === token)
-  const installJob = jobs.find(j => j.id === parent?.ev?.installJobId)
-  const booking = parent && installJob ? { jobNo: parent.jobNo, customer: customers.find(c => c.id === parent.customerId)?.name || '', principal: principals.find(p => p.id === parent.principalId)?.name || '', status: installJob.scheduledAt ? 'Confirmed' : 'Link sent', date: installJob.scheduledAt?.slice(0, 10), time: installJob.scheduledAt ? new Date(installJob.scheduledAt).toLocaleTimeString('en-MY', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' }).toUpperCase() : '' } : undefined
-  const users = useStore(s => s.users)
-  const jobTypes = useStore(s => s.jobTypes)
-  const capacity = useStore(s => s.settings.techDailyCapacity)
-  const availability = useOperationsStore(s => s.techAvailability)
-  const book = useOperationsStore(s => s.selfServiceBook)
-  const [date, setDate] = useState(addDays(FIRST_DAY, 6))
-  const [time, setTime] = useState(SLOTS[0])
+  const [picked, setPicked] = useState<string[]>([])
   const [error, setError] = useState('')
 
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(FIRST_DAY, i)), [])
-  const technicians = useMemo(() => users.filter(u => u.role === 'technician' && u.active), [users])
-  const type = jobTypes.find(t => t.id === 'jt4')
-  const freeTechs = (d: string, t12: string) => findTechForSlot({ technicians, date: d, time: time12to24(t12), type, jobs, jobTypes, capacity, availability }).free.length
-  const dayOpen = (d: string) => SLOTS.some(s => freeTechs(d, s) > 0)
+  const parent = env.jobs.find(j => j.ev?.bookingToken === token)
+  const installJob = env.jobs.find(j => j.id === parent?.ev?.installJobId)
+  const today = todayMy(getNow())
+  const days = useMemo(() => Array.from({ length: 21 }, (_, i) => addDays(today, i + 1)), [today])
+  const suggestions = useMemo(() => (installJob ? suggestDates(env, installJob, days, today) : []), [env, installJob, days, today])
+  const byDate = Object.fromEntries(suggestions.map(s => [s.date, s]))
 
   if (!hydrated) return null
-  if (!booking) return <main className="booking-page"><h1>This link isn&apos;t active yet</h1><p>Payment must be confirmed before booking is available.</p></main>
-  if (booking.status === 'Confirmed') {
+  if (!parent || !installJob) return <main className="booking-page"><h1>This link isn&apos;t active yet</h1><p>Payment must be confirmed before booking is available.</p></main>
+
+  const customer = env.customers.find(c => c.id === parent.customerId)?.name || ''
+  const principal = principals.find(p => p.id === parent.principalId)?.name || ''
+
+  if (installJob.scheduleState === 'Confirmed' && installJob.scheduledAt) {
     return (
       <main className="booking-page">
         <div className="booking-logo">myttem</div>
-        <h1>Your installation is confirmed for {booking.date ? fmtDate(booking.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : ''}, {booking.time}</h1>
+        <h1>Your installation is confirmed for {fmtDate(installJob.scheduledAt.slice(0, 10), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</h1>
         <p>To reschedule or cancel, please call us on 03-0000 0000</p>
       </main>
     )
   }
+  if (installJob.scheduleState === 'Draft' && installJob.bookingOptions) {
+    const o = installJob.bookingOptions
+    return (
+      <main className="booking-page">
+        <div className="booking-logo">myttem</div>
+        <h1>We have your preferred dates</h1>
+        <p>Our team will confirm one of these shortly: {[o.preferred, ...o.options].map(d => fmtDate(d, { weekday: 'short', day: 'numeric', month: 'short' })).join(', ')}.</p>
+        <p>To change them, please call us on 03-0000 0000</p>
+      </main>
+    )
+  }
 
-  const left = freeTechs(date, time)
+  const toggle = (d: string) => {
+    setError('')
+    setPicked(p => (p.includes(d) ? p.filter(x => x !== d) : p.length >= 4 ? p : [...p, d]))
+  }
   const confirm = () => {
-    const r = book(token, date, time)
+    if (picked.length !== 4) return setError('Please choose 4 dates: your preferred date first, then 3 alternatives.')
+    const [preferred, ...options] = picked
+    const available = picked.find(d => byDate[d]?.rating !== 'Not available')
+    if (!available) return setError('None of these dates are available. Please choose different dates.')
+    const best = suggestions.find(s => s.rating === 'Recommended')?.date
+    const bookingOptions: BookingOptions = { preferred, options: options as BookingOptions['options'], recommended: best }
+    const r = submit(token, bookingOptions, available)
     setError(r.ok ? '' : r.message)
   }
 
   return (
     <main className="booking-page">
       <div className="booking-logo">myttem</div>
-      <p>Principal: {booking.principal}</p>
+      <p>Principal: {principal}</p>
       <p>UPE: myttem EV</p>
-      <h1>Choose your installation date</h1>
-      <p>{booking.customer} · {booking.jobNo}</p>
-      <div className="date-strip" role="group" aria-label="Installation date">
-        {days.map(d => (
-          <button key={d} className={date === d ? 'selected' : ''} disabled={!dayOpen(d)} aria-pressed={date === d} onClick={() => { setDate(d); setError('') }}>
-            {fmtDate(d, { weekday: 'short', day: 'numeric' })}
-          </button>
-        ))}
-      </div>
-      <div className="slot-grid" role="group" aria-label="Installation time">
-        {SLOTS.map(s => {
-          const n = freeTechs(date, s)
+      <h1>Choose your installation dates</h1>
+      <p>{customer} · {parent.jobNo}</p>
+      <p>Pick 4 dates. The first one you tap is your preferred date, the next three are alternatives. Our team will confirm one.</p>
+      <div className="date-strip" role="group" aria-label="Installation dates">
+        {days.map(d => {
+          const s = byDate[d]
+          const index = picked.indexOf(d)
           return (
-            <button key={s} className={time === s ? 'selected' : ''} disabled={n === 0} aria-pressed={time === s} onClick={() => { setTime(s); setError('') }}>
-              {s}<small>{n === 0 ? 'Fully booked' : `${n} ${n === 1 ? 'slot' : 'slots'} left`}</small>
+            <button key={d} className={`${index >= 0 ? 'selected' : ''} ${s?.rating === 'Recommended' ? 'recommended' : ''}`} disabled={s?.rating === 'Not available'} aria-pressed={index >= 0} onClick={() => toggle(d)}>
+              {fmtDate(d, { weekday: 'short', day: 'numeric', month: 'short' })}
+              <small>{index >= 0 ? (index === 0 ? 'Preferred' : `Alternative ${index}`) : RATING_COPY[s?.rating ?? 'Possible']}</small>
             </button>
           )
         })}
       </div>
       {error && <p role="alert" className="booking-error">{error}</p>}
-      <button className="button primary full" disabled={left === 0} onClick={confirm}>Confirm installation</button>
+      <button className="button primary full" onClick={confirm}>Send my dates</button>
     </main>
   )
 }

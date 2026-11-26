@@ -1,25 +1,31 @@
 'use client'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CalendarClock, ChevronLeft, ChevronRight, Lock, Wifi, WifiOff } from 'lucide-react'
+import { AlertTriangle, CalendarClock, ChevronLeft, ChevronRight, Lock, Save, Undo2, Wifi, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell, PageHeader, useHydrated } from '@/components/shared'
 import { useStore } from '@/lib/store'
 import { useOperationsStore } from '@/lib/store/operations'
+import { useSchedEnv } from '@/lib/use-sched-env'
 import { getNow } from '@/lib/clock'
+import { BAND_LABEL, getTravelMinutes, isChillis, travelBand } from '@/lib/location'
 import {
-  DAY_END, DAY_START, LOCKED, SLOT_MINUTES, addDays, checkPlacement, dayOf, durationMinutes, fmtDate, fromMin, jobsOnDay, mondayOf, timeOf, toMin, todayMy, workDaysLabel,
-  type TechAvailability, type Violation,
+  DAY_END, DAY_START, LOCKED, SLOT_LABEL, SLOT_MINUTES, addDays, checkTeamPlacement, dayOf, firstFreeTime, fmtDate, fromMin, isBlocking, jobsOnTeamDay, minutesOf, mondayOf,
+  slotOf, stamp, teamOfJob, timeOf, toMin, todayMy, travelNeighbours, type SchedEnv, type Violation,
 } from '@/lib/scheduling'
-import type { Job, User } from '@/lib/types'
+import type { Job, SlotKind, Team } from '@/lib/types'
 
 type View = 'Day' | 'Week'
-type Pending = { job: Job; tech: User; date: string; time: string; violations: Violation[] }
-type Hover = { techId: string; date: string; time: string }
+type Draft = { teamId: string; date: string; time: string }
+type PendingItem = { job: Job; team: Team; date: string; time: string; violations: Violation[] }
+type Hover = { teamId: string; date: string; time: string }
 
 const ROW = 28
 const SLOTS = (DAY_END - DAY_START) / SLOT_MINUTES
-const KIND_LABEL = { capacity: 'Over capacity', availability: 'Outside availability', 'double-booked': 'Double-booked' } as const
+const KIND_LABEL: Record<Violation['kind'], string> = {
+  capacity: 'Over capacity', availability: 'Outside availability', 'double-booked': 'Double-booked', 'big-limit': 'Big job limit', 'slot-window': 'Outside slot window',
+  travel: 'Travel too far', coverage: 'Outside coverage', priority: "Chilli's priority",
+}
 
 function useBrowserOnline() {
   return useSyncExternalStore(
@@ -29,15 +35,8 @@ function useBrowserOnline() {
   )
 }
 
-function dayStatus(a: TechAvailability | undefined, date: string) {
-  if (!a) return null
-  if (a.daysOff.includes(date)) return 'On leave'
-  const wd = new Date(`${date}T12:00:00Z`).getUTCDay()
-  return a.workDays.includes(wd) ? null : 'Day off'
-}
-
-function layout(list: Job[], durationOf: (j: Job) => number) {
-  const items = list.map(job => { const start = toMin(timeOf(job.scheduledAt!)); return { job, start, end: start + durationOf(job), lane: 0, lanes: 1 } }).sort((a, b) => a.start - b.start)
+function layout(list: Job[], minutes: (j: Job) => number) {
+  const items = list.map(job => { const start = toMin(timeOf(job.scheduledAt!)); return { job, start, end: start + minutes(job), lane: 0, lanes: 1 } }).sort((a, b) => a.start - b.start)
   let cluster: typeof items = []
   let clusterEnd = 0
   const flush = () => { const n = Math.max(...cluster.map(c => c.lane)) + 1; cluster.forEach(c => { c.lanes = n }); cluster = []; clusterEnd = 0 }
@@ -61,12 +60,9 @@ export function SchedulerScreen() {
 }
 
 function Board() {
-  const jobs = useStore(s => s.jobs)
-  const users = useStore(s => s.users)
-  const jobTypes = useStore(s => s.jobTypes)
+  const baseEnv = useSchedEnv()
   const settings = useStore(s => s.settings)
   const role = useStore(s => s.users.find(u => u.id === s.currentUserId)?.role)
-  const availability = useOperationsStore(s => s.techAvailability)
   const schedule = useOperationsStore(s => s.scheduleJob)
   const toggleLeave = useOperationsStore(s => s.toggleDayOff)
   const browserOnline = useBrowserOnline()
@@ -76,53 +72,104 @@ function Board() {
   const [anchor, setAnchor] = useState(today)
   const [dragId, setDragId] = useState<string | null>(null)
   const [hover, setHover] = useState<Hover | null>(null)
-  const [pending, setPending] = useState<Pending | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({})
+  const [pending, setPending] = useState<PendingItem[] | null>(null)
   const [manual, setManual] = useState<Job | null>(null)
+  const [filters, setFilters] = useState({ type: '', size: '', principal: '', area: '' })
 
-  const techs = users.filter(u => u.role === 'technician' && u.active)
-  const capacity = settings.techDailyCapacity
+  const env: SchedEnv = useMemo(
+    () => ({ ...baseEnv, jobs: baseEnv.jobs.map(j => { const d = drafts[j.id]; return d ? { ...j, teamId: d.teamId, scheduledAt: stamp(d.date, d.time), scheduleState: 'Draft' as const } : j }) }),
+    [baseEnv, drafts],
+  )
+  const teams = env.teams.filter(t => t.active)
   const isAdmin = role === 'admin'
   const online = settings.deviceOnline && browserOnline
   const canMove = isAdmin && online
-  const typeOf = (j: Job) => jobTypes.find(t => t.id === j.jobTypeId)
-  const durationOf = (j: Job) => durationMinutes(typeOf(j))
+  const typeOf = (j: Job) => env.jobTypes.find(t => t.id === j.jobTypeId)
+  const siteOf = (j: Job) => env.sites.find(s => s.id === j.siteId)
   const days = view === 'Day' ? [anchor] : Array.from({ length: 7 }, (_, i) => addDays(mondayOf(anchor), i))
-  const unassigned = jobs.filter(j => j.status === 'Created')
-  const dragged = dragId ? jobs.find(j => j.id === dragId) : undefined
+  const dragged = dragId ? env.jobs.find(j => j.id === dragId) : undefined
+  const draftCount = Object.keys(drafts).length
 
-  const check = (job: Job, tech: User, date: string, time: string) =>
-    checkPlacement({ job, type: typeOf(job), tech, date, time, jobs, jobTypes, capacity, availability: availability[tech.id] })
+  const unassigned = useMemo(() => {
+    const list = baseEnv.jobs.filter(j => j.status === 'Created' && !j.scheduledAt && !drafts[j.id]).filter(j => {
+      if (filters.type && j.jobTypeId !== filters.type) return false
+      if (filters.size && slotOf(j, baseEnv.jobTypes) !== filters.size) return false
+      if (filters.principal && j.principalId !== filters.principal) return false
+      if (filters.area && baseEnv.sites.find(s => s.id === j.siteId)?.area !== filters.area) return false
+      return true
+    })
+    const rank = (j: Job) => (isChillis(baseEnv.customers.find(c => c.id === j.customerId)) ? 0 : 1)
+    const area = (j: Job) => baseEnv.sites.find(s => s.id === j.siteId)?.area ?? ''
+    return list.sort((a, b) => rank(a) - rank(b) || area(a).localeCompare(area(b)) || a.createdAt.localeCompare(b.createdAt))
+  }, [baseEnv, drafts, filters])
+  const awaiting = baseEnv.jobs.filter(j => j.scheduleState === 'Draft' && j.scheduledAt && !drafts[j.id])
+  const areas = Array.from(new Set(baseEnv.sites.map(s => s.area).filter(Boolean))).sort()
 
-  const suggest = (job: Job, tech: User, date: string) => {
-    const weight = { availability: 100, 'double-booked': 10, capacity: 1 } as const
-    let best = { time: availability[tech.id]?.workStart ?? '09:00', score: Infinity }
-    for (let t = DAY_START; t + durationOf(job) <= DAY_END; t += SLOT_MINUTES) {
-      const time = fromMin(t)
-      const score = check(job, tech, date, time).reduce((n, v) => n + weight[v.kind], 0)
-      if (score < best.score) best = { time, score }
-      if (score === 0) break
+  useEffect(() => {
+    if (!draftCount) return
+    const beforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    const linkGuard = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || a.target === '_blank' || !a.href.startsWith(window.location.origin)) return
+      if (!window.confirm(`You have ${draftCount} unsaved scheduling ${draftCount === 1 ? 'change' : 'changes'}. Leave without saving?`)) { e.preventDefault(); e.stopPropagation() }
     }
-    return best.time
-  }
+    window.addEventListener('beforeunload', beforeUnload)
+    document.addEventListener('click', linkGuard, true)
+    return () => { window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('click', linkGuard, true) }
+  }, [draftCount])
 
-  const place = (jobId: string, tech: User, date: string, time: string) => {
+  const check = (job: Job, team: Team, date: string, time: string) => checkTeamPlacement(env, job, team, date, time)
+
+  const place = (jobId: string, team: Team, date: string, time: string) => {
     setDragId(null)
     setHover(null)
-    const job = jobs.find(j => j.id === jobId)
+    const job = env.jobs.find(j => j.id === jobId)
     if (!job) return
-    if (job.technicianId === tech.id && job.scheduledAt && dayOf(job.scheduledAt) === date && timeOf(job.scheduledAt) === time) return
-    const r = schedule(job.id, tech.id, date, time)
-    if (r.ok) return void toast.success(`${job.jobNo} scheduled: ${tech.name.split(' ')[0]}, ${fmtDate(date)} ${time}`)
-    if (r.reason === 'violations' && r.violations) return void setPending({ job, tech, date, time, violations: r.violations })
-    toast.error(r.message)
+    const current = job.scheduledAt && teamOfJob(job, env.teams) === team.id && dayOf(job.scheduledAt) === date && timeOf(job.scheduledAt) === time
+    if (current && job.scheduleState !== 'Draft') return
+    setDrafts(d => ({ ...d, [jobId]: { teamId: team.id, date, time } }))
+    const v = check(job, team, date, time)
+    const blocking = v.filter(isBlocking)
+    if (blocking.length) toast.warning(`${job.jobNo} draft has ${blocking.length} rule ${blocking.length === 1 ? 'issue' : 'issues'}. Review them when you save.`)
+  }
+
+  const discard = () => setDrafts({})
+
+  const saveAll = () => {
+    const blocked: PendingItem[] = []
+    const remaining: Record<string, Draft> = {}
+    let saved = 0
+    for (const [jobId, d] of Object.entries(drafts)) {
+      const job = baseEnv.jobs.find(j => j.id === jobId)
+      const team = baseEnv.teams.find(t => t.id === d.teamId)
+      if (!job || !team) continue
+      const r = schedule(jobId, d.teamId, d.date, d.time)
+      if (r.ok) saved++
+      else if (r.reason === 'violations' && r.violations) { blocked.push({ job, team, date: d.date, time: d.time, violations: r.violations }); remaining[jobId] = d }
+      else { toast.error(`${job.jobNo}: ${r.message}`); remaining[jobId] = d }
+    }
+    setDrafts(remaining)
+    if (saved) toast.success(`${saved} ${saved === 1 ? 'job' : 'jobs'} scheduled.`)
+    if (blocked.length) setPending(blocked)
   }
 
   const confirmOverride = (reason: string) => {
     if (!pending) return
-    const r = schedule(pending.job.id, pending.tech.id, pending.date, pending.time, reason)
-    if (r.ok) toast.success(`${pending.job.jobNo} saved with override. Reason written to job history.`)
-    else toast.error(r.message)
+    const remaining = { ...drafts }
+    for (const p of pending) {
+      const r = schedule(p.job.id, p.team.id, p.date, p.time, reason)
+      if (r.ok) delete remaining[p.job.id]
+      else toast.error(`${p.job.jobNo}: ${r.message}`)
+    }
+    setDrafts(remaining)
+    toast.success('Saved with override. The reason is written to each job history.')
     setPending(null)
+  }
+
+  const reviewAwaiting = (j: Job) => {
+    const team = env.teams.find(t => t.id === teamOfJob(j, env.teams))
+    if (team && j.scheduledAt) setDrafts(d => ({ ...d, [j.id]: { teamId: team.id, date: dayOf(j.scheduledAt!), time: timeOf(j.scheduledAt!) } }))
   }
 
   const jobCardProps = (j: Job) => {
@@ -133,7 +180,8 @@ function Board() {
       onDragEnd: () => { setDragId(null); setHover(null) },
     }
   }
-  const eventTitle = (j: Job) => `${j.jobNo}: ${j.subject}${j.schedulingOverride ? `\nOverride: ${j.schedulingOverride.reason}` : ''}`
+
+  const common: GridCommon = { env, teams, canMove, dragged, hover, check, jobCardProps, onHover: setHover, siteOf, drafts }
 
   return (
     <AppShell crumb="Scheduler">
@@ -159,40 +207,75 @@ function Board() {
 
         {!isAdmin && <p className="sch-note"><Lock size={14} />View only. Only admins can schedule or override. Technicians cannot reschedule.</p>}
         {isAdmin && !online && <p className="sch-note warn"><WifiOff size={14} />You are offline. Scheduling changes need a connection, so moves are disabled until you reconnect.</p>}
+        {draftCount > 0 && (
+          <div className="sch-draftbar" role="status">
+            <span><strong>{draftCount}</strong> unsaved {draftCount === 1 ? 'change' : 'changes'}. Nothing is booked until you save.</span>
+            <span className="sch-spacer" />
+            <button className="button secondary" onClick={discard}><Undo2 size={14} />Discard</button>
+            <button className="button primary" onClick={saveAll} disabled={!canMove}><Save size={14} />Save schedule</button>
+          </div>
+        )}
 
         <div className="sch-board">
           <div className="sch-layout">
             <aside className="unassigned-rail" aria-label="Unassigned jobs">
               <p className="eyebrow">Unassigned jobs</p>
               <strong>{unassigned.length} to schedule</strong>
-              {!unassigned.length && <small className="muted">Everything is assigned.</small>}
-              {unassigned.map(j => (
-                <div key={j.id} className="job-card unassigned" {...jobCardProps(j)}>
-                  <code>{j.jobNo}</code><b>{j.subject}</b>
-                  <small>{typeOf(j)?.name} · {durationOf(j) / 60}h</small>
-                  {canMove && <button className="button secondary sm" onClick={() => setManual(j)}><CalendarClock size={14} />Schedule</button>}
-                </div>
-              ))}
+              <div className="sch-filters">
+                <select className="field-input" aria-label="Filter by job type" value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}><option value="">All job types</option>{env.jobTypes.filter(t => t.active).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                <select className="field-input" aria-label="Filter by size" value={filters.size} onChange={e => setFilters(f => ({ ...f, size: e.target.value }))}><option value="">All sizes</option>{(['BIG', 'SMALL', 'ASSESSMENT'] as SlotKind[]).map(k => <option key={k} value={k}>{SLOT_LABEL[k]}</option>)}</select>
+                <select className="field-input" aria-label="Filter by principal" value={filters.principal} onChange={e => setFilters(f => ({ ...f, principal: e.target.value }))}><option value="">All principals</option>{env.principals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                <select className="field-input" aria-label="Filter by area" value={filters.area} onChange={e => setFilters(f => ({ ...f, area: e.target.value }))}><option value="">All areas</option>{areas.map(a => <option key={a}>{a}</option>)}</select>
+              </div>
+              {!unassigned.length && <small className="muted">Nothing matches. Everything is assigned.</small>}
+              {unassigned.map(j => {
+                const slot = slotOf(j, env.jobTypes)
+                const site = siteOf(j)
+                const chillis = isChillis(env.customers.find(c => c.id === j.customerId))
+                return (
+                  <div key={j.id} className={`job-card unassigned slot-${slot}`} {...jobCardProps(j)}>
+                    <div className="sch-tags"><code>{j.jobNo}</code><span className={`slot-tag slot-${slot}`}>{SLOT_LABEL[slot]}</span>{chillis && <span className="slot-tag chillis">Chilli&apos;s</span>}</div>
+                    <b>{j.subject}</b>
+                    <small>{typeOf(j)?.name} · {site?.area || 'No area'} · {minutesOf(j, env) / 60}h</small>
+                    {canMove && <button className="button secondary sm" onClick={() => setManual(j)}><CalendarClock size={14} />Schedule</button>}
+                  </div>
+                )
+              })}
+
+              {awaiting.length > 0 && (
+                <>
+                  <p className="eyebrow sch-rail-gap">Awaiting confirmation</p>
+                  {awaiting.map(j => (
+                    <div key={j.id} className="job-card slot-SMALL">
+                      <code>{j.jobNo}</code><b>{j.subject}</b>
+                      <small>Customer asked for {fmtDate(dayOf(j.scheduledAt!))}</small>
+                      {canMove && <button className="button secondary sm" onClick={() => reviewAwaiting(j)}>Review and confirm</button>}
+                    </div>
+                  ))}
+                </>
+              )}
+
               <div className="sch-legend">
+                <span><i className="sw slot-BIG" />Big job (10:00 to 14:30)</span>
+                <span><i className="sw slot-SMALL" />Small job (14:30 to 16:30)</span>
+                <span><i className="sw slot-ASSESSMENT" />Assessment (10:00 to 12:00)</span>
+                <span><i className="sw draft" />Unsaved draft</span>
                 <span><i className="sw override" />Override applied</span>
-                <span><i className="sw self" />Customer self-service</span>
                 <span><i className="sw off" />Leave or outside hours</span>
               </div>
             </aside>
 
             <div className="calendar sch-cal">
-              {view === 'Day' ? (
+              {!teams.length ? <p className="sch-empty">No active teams. Add one in Settings, Teams.</p> : view === 'Day' ? (
                 <DayGrid
-                  date={anchor} techs={techs} jobs={jobs} availability={availability} capacity={capacity} isAdmin={isAdmin} canMove={canMove} dragged={dragged} hover={hover}
-                  durationOf={durationOf} check={check} jobCardProps={jobCardProps} eventTitle={eventTitle}
-                  onHover={setHover} onDrop={(tech, date, time) => dragId && place(dragId, tech, date, time)}
-                  onToggleLeave={(tech, date) => { const r = toggleLeave(tech.id, date); if (!r.ok) toast.error(r.message) }}
+                  {...common} date={anchor} isAdmin={isAdmin}
+                  onDrop={(team, date, time) => dragId && place(dragId, team, date, time)}
+                  onToggleLeave={(userId, date) => { const r = toggleLeave(userId, date); if (!r.ok) toast.error(r.message) }}
                 />
               ) : (
                 <WeekGrid
-                  days={days} today={today} techs={techs} jobs={jobs} availability={availability} capacity={capacity} canMove={canMove} dragged={dragged} hover={hover}
-                  check={check} suggest={suggest} jobCardProps={jobCardProps} eventTitle={eventTitle} durationOf={durationOf}
-                  onHover={setHover} onDrop={(tech, date) => { const job = dragged; if (job) place(job.id, tech, date, suggest(job, tech, date)) }}
+                  {...common} days={days} today={today}
+                  onDrop={(team, date) => { if (dragged) place(dragged.id, team, date, firstFreeTime(env, dragged, team, date).time) }}
                   onOpenDay={d => { setAnchor(d); setView('Day') }}
                 />
               )}
@@ -202,86 +285,113 @@ function Board() {
       </section>
 
       {pending && <OverrideDialog pending={pending} onCancel={() => setPending(null)} onConfirm={confirmOverride} />}
-      {manual && <ManualDialog job={manual} techs={techs} today={today} onCancel={() => setManual(null)} onSubmit={(tech, date, time) => { setManual(null); place(manual.id, tech, date, time) }} />}
+      {manual && <ManualDialog env={env} job={manual} teams={teams} today={today} onCancel={() => setManual(null)} onSubmit={(team, date, time) => { setManual(null); place(manual.id, team, date, time) }} />}
     </AppShell>
   )
 }
 
-function TechHead({ tech, a, load, loadLabel, capacity, status }: { tech: User; a?: TechAvailability; load: number; loadLabel: string; capacity: number; status?: string | null }) {
+type GridCommon = {
+  env: SchedEnv; teams: Team[]; canMove: boolean; dragged?: Job; hover: Hover | null; drafts: Record<string, Draft>
+  check: (job: Job, team: Team, date: string, time: string) => Violation[]
+  jobCardProps: (j: Job) => object
+  siteOf: (j: Job) => SchedEnv['sites'][number] | undefined
+  onHover: (h: Hover | null) => void
+}
+
+function JobBody({ job, env, siteOf, showTime }: { job: Job; env: SchedEnv; siteOf: GridCommon['siteOf']; showTime?: boolean }) {
+  const slot = slotOf(job, env.jobTypes)
+  const principal = env.principals.find(p => p.id === job.principalId)
+  const chillis = isChillis(env.customers.find(c => c.id === job.customerId))
+  return (
+    <>
+      <div className="sch-tags"><code>{job.jobNo}</code><span className={`slot-tag slot-${slot}`}>{SLOT_LABEL[slot]}</span>{chillis && <span className="slot-tag chillis">Chilli&apos;s</span>}</div>
+      <span>{job.subject}</span>
+      <small>{showTime && job.scheduledAt ? `${timeOf(job.scheduledAt)} · ` : ''}{siteOf(job)?.area || 'No area'}{principal ? ` · ${principal.name}` : ''}</small>
+      {job.scheduleState === 'Draft' && <em className="sch-flag draft">Draft</em>}
+      {job.schedulingOverride && <em className="sch-flag"><AlertTriangle size={11} />Override</em>}
+    </>
+  )
+}
+
+function eventClass(j: Job, env: SchedEnv) {
+  return `slot-${slotOf(j, env.jobTypes)}${LOCKED.includes(j.status) ? ' locked' : ''}${j.schedulingOverride ? ' override' : ''}${j.scheduleState === 'Draft' ? ' is-draft' : ''}`
+}
+const eventTitle = (j: Job) => `${j.jobNo}: ${j.subject}${j.schedulingOverride ? `\nOverride: ${j.schedulingOverride.reason}` : ''}`
+
+function TeamHead({ team, env, date, dayJobs, onToggleLeave, isAdmin }: { team: Team; env: SchedEnv; date: string; dayJobs: Job[]; onToggleLeave?: (userId: string, date: string) => void; isAdmin?: boolean }) {
+  const members = team.memberIds.map(id => env.users.find(u => u.id === id)).filter(Boolean) as SchedEnv['users']
+  const big = dayJobs.filter(j => slotOf(j, env.jobTypes) === 'BIG').length
   return (
     <div className="sch-tech">
-      <strong>{tech.name}</strong>
-      <small>{a ? `${a.workStart} to ${a.workEnd} · ${workDaysLabel(a)}` : 'No availability set'}</small>
-      <small className={status ? 'sch-flagtext' : ''}>{status ?? 'Available'} · {loadLabel}</small>
-      <div className={`sch-meter ${load >= capacity ? 'full' : ''}`} aria-hidden><i style={{ width: `${Math.min(100, (load / capacity) * 100)}%` }} /></div>
+      <strong><i className="team-dot" style={{ background: team.colour }} />{team.name}</strong>
+      <small>{dayJobs.length}/{env.capacity} jobs · Big {big}/{env.scheduling.maxBigPerTeamDay}</small>
+      <div className="sch-members">
+        {members.map(m => {
+          const off = env.techAvailability[m.id]?.daysOff.includes(date)
+          return onToggleLeave && isAdmin
+            ? <button key={m.id} className={`member-chip ${off ? 'off' : ''}`} onClick={() => onToggleLeave(m.id, date)} aria-pressed={!!off} title={off ? 'Remove leave' : 'Mark leave'}>{m.name.split(' ')[0]}{off ? ' (leave)' : ''}</button>
+            : <span key={m.id} className={`member-chip ${off ? 'off' : ''}`}>{m.name.split(' ')[0]}{off ? ' (leave)' : ''}</span>
+        })}
+        {!members.length && <small>No members</small>}
+      </div>
+      <div className={`sch-meter ${dayJobs.length >= env.capacity ? 'full' : ''}`} aria-hidden><i style={{ width: `${Math.min(100, (dayJobs.length / env.capacity) * 100)}%` }} /></div>
     </div>
   )
 }
 
-type GridCommon = {
-  techs: User[]; jobs: Job[]; availability: Record<string, TechAvailability>; capacity: number; canMove: boolean; dragged?: Job; hover: Hover | null
-  check: (job: Job, tech: User, date: string, time: string) => Violation[]
-  jobCardProps: (j: Job) => object; eventTitle: (j: Job) => string; durationOf: (j: Job) => number
-  onHover: (h: Hover | null) => void
+function TravelNote({ env, job, team, date, time }: { env: SchedEnv; job: Job; team: Team; date: string; time: string }) {
+  const { before, after } = travelNeighbours(env, job, team.id, date, time)
+  const parts = [
+    before.minutes !== undefined && { label: `${before.minutes} min from ${before.job ? before.job.jobNo : `base (${env.base.name})`}`, band: travelBand(before.minutes, env.scheduling) },
+    after?.minutes !== undefined && { label: `${after.minutes} min to ${after.job.jobNo}`, band: travelBand(after.minutes, env.scheduling) },
+  ].filter(Boolean) as { label: string; band: 'green' | 'amber' | 'red' }[]
+  return <>{parts.map(p => <span key={p.label} className={`travel-band ${p.band}`}>{p.label} (est.) · {BAND_LABEL[p.band]}</span>)}</>
 }
 
-function DayGrid(p: GridCommon & { date: string; isAdmin: boolean; onDrop: (tech: User, date: string, time: string) => void; onToggleLeave: (tech: User, date: string) => void }) {
+function DayGrid(p: GridCommon & { date: string; isAdmin: boolean; onDrop: (team: Team, date: string, time: string) => void; onToggleLeave: (userId: string, date: string) => void }) {
+  const { env } = p
   const hours = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => DAY_START / 60 + i)
+  const minutes = (j: Job) => minutesOf(j, env)
+  const win = env.scheduling.windows
+  const band = (k: SlotKind) => ({ top: ((toMin(win[k].start) - DAY_START) / SLOT_MINUTES) * ROW, height: ((toMin(win[k].end) - toMin(win[k].start)) / SLOT_MINUTES) * ROW })
   return (
-    <div className="sch-day" style={{ gridTemplateColumns: `56px repeat(${p.techs.length}, minmax(200px, 1fr))` }}>
+    <div className="sch-day" style={{ gridTemplateColumns: `56px repeat(${p.teams.length}, minmax(240px, 1fr))` }}>
       <div className="sch-head-corner" />
-      {p.techs.map(t => {
-        const a = p.availability[t.id]
-        const count = jobsOnDay(p.jobs, t.id, p.date).length
-        return (
-          <div key={t.id} className="sch-head-cell">
-            <TechHead tech={t} a={a} load={count} capacity={p.capacity} status={dayStatus(a, p.date)} loadLabel={`${count} of ${p.capacity} jobs`} />
-            {p.isAdmin && <button className="button ghost sm" onClick={() => p.onToggleLeave(t, p.date)}>{a?.daysOff.includes(p.date) ? 'Clear leave' : 'Mark leave'}</button>}
-          </div>
-        )
-      })}
-      <div className="sch-times" style={{ height: SLOTS * ROW }}>{hours.map((h, i) => <span key={h} style={{ top: i * 2 * ROW }}>{String(h).padStart(2, '0')}:00</span>)}</div>
-      {p.techs.map(t => {
-        const a = p.availability[t.id]
-        const status = dayStatus(a, p.date)
-        const events = layout(jobsOnDay(p.jobs, t.id, p.date), p.durationOf)
-        const ghost = p.hover && p.hover.techId === t.id && p.hover.date === p.date && p.dragged ? { time: p.hover.time, violations: p.check(p.dragged, t, p.date, p.hover.time) } : null
+      {p.teams.map(t => <div key={t.id} className="sch-head-cell"><TeamHead team={t} env={env} date={p.date} dayJobs={jobsOnTeamDay(env, t.id, p.date)} isAdmin={p.isAdmin} onToggleLeave={p.onToggleLeave} /></div>)}
+      <div className="sch-times" style={{ height: SLOTS * ROW }}>{hours.map(h => <span key={h} style={{ top: ((h * 60 - DAY_START) / SLOT_MINUTES) * ROW }}>{String(h).padStart(2, '0')}:00</span>)}</div>
+      {p.teams.map(t => {
+        const events = layout(jobsOnTeamDay(env, t.id, p.date), minutes)
+        const h = p.hover && p.hover.teamId === t.id && p.hover.date === p.date ? p.hover : null
+        const ghostViolations = h && p.dragged ? p.check(p.dragged, t, h.date, h.time) : []
+        const blocking = ghostViolations.filter(isBlocking)
         return (
           <div
-            key={t.id}
-            className="sch-col"
-            style={{ height: SLOTS * ROW }}
+            key={t.id} className="sch-col" style={{ height: SLOTS * ROW }}
             onDragOver={e => {
-              if (!p.dragged || !p.canMove) return
+              if (!p.canMove) return
               e.preventDefault()
-              const r = e.currentTarget.getBoundingClientRect()
-              const slot = Math.min(SLOTS - 1, Math.max(0, Math.floor((e.clientY - r.top) / ROW)))
+              const rect = e.currentTarget.getBoundingClientRect()
+              const slot = Math.max(0, Math.min(SLOTS - 1, Math.floor((e.clientY - rect.top) / ROW)))
               const time = fromMin(DAY_START + slot * SLOT_MINUTES)
-              if (!p.hover || p.hover.techId !== t.id || p.hover.date !== p.date || p.hover.time !== time) p.onHover({ techId: t.id, date: p.date, time })
+              if (!h || h.time !== time) p.onHover({ teamId: t.id, date: p.date, time })
             }}
             onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) p.onHover(null) }}
-            onDrop={e => { e.preventDefault(); if (p.hover) p.onDrop(t, p.hover.date, p.hover.time) }}
+            onDrop={e => { e.preventDefault(); if (h) p.onDrop(t, h.date, h.time) }}
           >
-            {status && <div className="sch-off" style={{ top: 0, bottom: 0 }}><span>{status}</span></div>}
-            {!status && a && toMin(a.workStart) > DAY_START && <div className="sch-off" style={{ top: 0, height: ((toMin(a.workStart) - DAY_START) / SLOT_MINUTES) * ROW }} />}
-            {!status && a && toMin(a.workEnd) < DAY_END && <div className="sch-off" style={{ bottom: 0, height: ((DAY_END - toMin(a.workEnd)) / SLOT_MINUTES) * ROW }} />}
+            {(['BIG', 'SMALL', 'ASSESSMENT'] as SlotKind[]).map(k => <div key={k} className={`sch-band slot-${k}`} style={band(k)}><span>{SLOT_LABEL[k]}</span></div>)}
             {events.map(({ job, start, end, lane, lanes }) => (
               <Link
-                key={job.id} href={`/jobs/${job.id}`} title={p.eventTitle(job)} {...p.jobCardProps(job)}
-                className={`sch-ev ${job.schedulingOverride ? 'override' : ''} ${job.selfService ? 'self' : ''} ${LOCKED.includes(job.status) ? 'locked' : ''}`}
-                style={{ top: ((start - DAY_START) / SLOT_MINUTES) * ROW, height: ((end - start) / SLOT_MINUTES) * ROW - 2, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
+                key={job.id} href={`/jobs/${job.id}`} className={`sch-ev ${eventClass(job, env)}`} title={eventTitle(job)} {...p.jobCardProps(job)}
+                style={{ top: ((start - DAY_START) / SLOT_MINUTES) * ROW, height: Math.max(ROW, ((end - start) / SLOT_MINUTES) * ROW - 2), left: `calc(${(lane / lanes) * 100}% + 4px)`, width: `calc(${100 / lanes}% - 8px)` }}
               >
-                <code>{job.jobNo}</code>
-                <span>{job.subject}</span>
-                <small>{fromMin(start)} to {fromMin(end)}</small>
-                {job.schedulingOverride && <em className="sch-flag"><AlertTriangle size={11} />Override: {job.schedulingOverride.reason}</em>}
-                {job.selfService && <em className="sch-flag self">Self-service</em>}
+                <JobBody job={job} env={env} siteOf={p.siteOf} showTime />
               </Link>
             ))}
-            {ghost && p.dragged && (
-              <div className={`sch-ghost ${ghost.violations.length ? 'warn' : 'ok'}`} style={{ top: ((toMin(ghost.time) - DAY_START) / SLOT_MINUTES) * ROW, height: (p.durationOf(p.dragged) / SLOT_MINUTES) * ROW - 2 }}>
-                <b>{ghost.time}</b>
-                <span>{ghost.violations.length ? ghost.violations.map(v => KIND_LABEL[v.kind]).join(', ') : 'Fits'}</span>
+            {h && p.dragged && (
+              <div className={`sch-ghost ${blocking.length ? 'warn' : 'ok'}`} style={{ top: ((toMin(h.time) - DAY_START) / SLOT_MINUTES) * ROW, height: Math.max(ROW, (minutes(p.dragged) / SLOT_MINUTES) * ROW - 2) }}>
+                <strong>{h.time} to {fromMin(toMin(h.time) + minutes(p.dragged))}</strong>
+                {ghostViolations.map(v => <span key={v.kind + v.message} className="sch-preview">{KIND_LABEL[v.kind]}</span>)}
+                <TravelNote env={env} job={p.dragged} team={t} date={h.date} time={h.time} />
               </div>
             )}
           </div>
@@ -291,58 +401,65 @@ function DayGrid(p: GridCommon & { date: string; isAdmin: boolean; onDrop: (tech
   )
 }
 
-function WeekGrid(p: GridCommon & { days: string[]; today: string; suggest: (job: Job, tech: User, date: string) => string; onDrop: (tech: User, date: string) => void; onOpenDay: (date: string) => void }) {
+function WeekGrid(p: GridCommon & { days: string[]; today: string; onDrop: (team: Team, date: string) => void; onOpenDay: (date: string) => void }) {
+  const { env } = p
   return (
-    <div className="sch-week" style={{ gridTemplateColumns: `120px repeat(${p.techs.length}, minmax(190px, 1fr))` }}>
+    <div className="sch-week" style={{ gridTemplateColumns: `100px repeat(${p.teams.length}, minmax(260px, 1fr))` }}>
       <div className="sch-head-corner" />
-      {p.techs.map(t => {
-        const weekCount = p.days.reduce((n, d) => n + jobsOnDay(p.jobs, t.id, d).length, 0)
-        return <div key={t.id} className="sch-head-cell"><TechHead tech={t} a={p.availability[t.id]} load={weekCount} capacity={p.capacity * 5} loadLabel={`${weekCount} jobs this week`} /></div>
-      })}
+      {p.teams.map(t => <div key={t.id} className="sch-head-cell"><TeamHead team={t} env={env} date={p.today} dayJobs={p.days.flatMap(d => jobsOnTeamDay(env, t.id, d))} /></div>)}
       {p.days.map(d => (
-        <WeekRow key={d} date={d} isToday={d === p.today} {...p} />
+        <WeekRow key={d} {...p} date={d} />
       ))}
     </div>
   )
 }
 
-function WeekRow(p: Parameters<typeof WeekGrid>[0] & { date: string; isToday: boolean }) {
+function WeekRow(p: GridCommon & { date: string; today: string; days: string[]; onDrop: (team: Team, date: string) => void; onOpenDay: (date: string) => void }) {
+  const { env, date } = p
   return (
     <>
-      <div className={`sch-daylabel ${p.isToday ? 'today' : ''}`}>
-        <button className="link-button" onClick={() => p.onOpenDay(p.date)}>{fmtDate(p.date, { weekday: 'short' })}<br /><span>{fmtDate(p.date, { day: 'numeric', month: 'short' })}</span></button>
-      </div>
-      {p.techs.map(t => {
-        const a = p.availability[t.id]
-        const status = dayStatus(a, p.date)
-        const list = layout(jobsOnDay(p.jobs, t.id, p.date), p.durationOf).map(x => x.job)
-        const over = list.length > p.capacity
-        const preview = p.hover && p.hover.techId === t.id && p.hover.date === p.date && p.dragged
-          ? p.check(p.dragged, t, p.date, p.suggest(p.dragged, t, p.date)) : null
+      <button className={`sch-daylabel ${date === p.today ? 'today' : ''}`} onClick={() => p.onOpenDay(date)}>{fmtDate(date, { weekday: 'short' })}<br /><span>{fmtDate(date, { day: 'numeric', month: 'short' })}</span></button>
+      {p.teams.map(t => {
+        const list = jobsOnTeamDay(env, t.id, date).sort((a, b) => toMin(timeOf(a.scheduledAt!)) - toMin(timeOf(b.scheduledAt!)))
+        const h = p.hover && p.hover.teamId === t.id && p.hover.date === date ? p.hover : null
+        const violations = h && p.dragged ? p.check(p.dragged, t, date, h.time) : []
+        const blocking = violations.filter(isBlocking)
+        const count = (k: SlotKind) => list.filter(j => slotOf(j, env.jobTypes) === k).length
+        const areas = Array.from(new Set(list.map(j => p.siteOf(j)?.area).filter(Boolean)))
         return (
           <div
-            key={`${t.id}-${p.date}`}
-            className={`sch-cell ${status ? 'off' : ''} ${p.isToday ? 'today' : ''} ${preview ? (preview.length ? 'warn' : 'ok') : ''}`}
-            onDragOver={e => { if (!p.dragged || !p.canMove) return; e.preventDefault(); if (!p.hover || p.hover.techId !== t.id || p.hover.date !== p.date) p.onHover({ techId: t.id, date: p.date, time: '' }) }}
+            key={t.id} className={`sch-cell ${date === p.today ? 'today' : ''} ${h ? (blocking.length ? 'warn' : 'ok') : ''}`}
+            onDragOver={e => { if (!p.canMove || !p.dragged) return; e.preventDefault(); if (!h) p.onHover({ teamId: t.id, date, time: firstFreeTime(env, p.dragged, t, date).time }) }}
             onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) p.onHover(null) }}
-            onDrop={e => { e.preventDefault(); p.onDrop(t, p.date) }}
+            onDrop={e => { e.preventDefault(); p.onDrop(t, date) }}
           >
             <div className="sch-cell-top">
-              <span className={`sch-load ${over || list.length === p.capacity ? 'full' : ''}`}>{list.length}/{p.capacity} jobs</span>
-              {status && <span className="sch-off-tag">{status}</span>}
+              <span className="sch-load-line">Big {count('BIG')}/{env.scheduling.maxBigPerTeamDay} · Small {count('SMALL')} · Assess {count('ASSESSMENT')}</span>
+              <span className={`sch-load ${list.length >= env.capacity ? 'full' : ''}`}>{list.length}/{env.capacity}</span>
             </div>
-            {list.map(job => (
-              <Link
-                key={job.id} href={`/jobs/${job.id}`} title={p.eventTitle(job)} {...p.jobCardProps(job)}
-                className={`sch-chip ${job.schedulingOverride ? 'override' : ''} ${job.selfService ? 'self' : ''} ${LOCKED.includes(job.status) ? 'locked' : ''}`}
-              >
-                <code>{job.jobNo}</code>
-                <span>{timeOf(job.scheduledAt!)} · {job.subject}</span>
-                {job.schedulingOverride && <em className="sch-flag"><AlertTriangle size={11} />Override: {job.schedulingOverride.reason}</em>}
-                {job.selfService && <em className="sch-flag self">Self-service</em>}
-              </Link>
-            ))}
-            {preview && !!preview.length && <small className="sch-preview">{preview[0].message}</small>}
+            {areas.length > 0 && <small className="sch-areas">{areas.join(', ')}</small>}
+            {list.map((j, i) => {
+              const next = list[i + 1]
+              const from = p.siteOf(j)
+              const to = next && p.siteOf(next)
+              const a = from?.lat !== undefined && from?.lng !== undefined ? { lat: from.lat, lng: from.lng } : undefined
+              const b = to && to.lat !== undefined && to.lng !== undefined ? { lat: to.lat, lng: to.lng } : undefined
+              return (
+                <div key={j.id} className="sch-stack">
+                  <Link href={`/jobs/${j.id}`} className={`sch-chip ${eventClass(j, env)}`} title={eventTitle(j)} {...p.jobCardProps(j)}>
+                    <JobBody job={j} env={env} siteOf={p.siteOf} showTime />
+                  </Link>
+                  {a && b && <HopLabel env={env} a={a} b={b} />}
+                </div>
+              )
+            })}
+            {h && p.dragged && (
+              <div className={`sch-ghost-chip ${blocking.length ? 'warn' : 'ok'}`}>
+                <strong>{p.dragged.jobNo} at {h.time}</strong>
+                {violations.map(v => <span key={v.kind + v.message} className="sch-preview">{KIND_LABEL[v.kind]}</span>)}
+                <TravelNote env={env} job={p.dragged} team={t} date={date} time={h.time} />
+              </div>
+            )}
           </div>
         )
       })}
@@ -350,7 +467,13 @@ function WeekRow(p: Parameters<typeof WeekGrid>[0] & { date: string; isToday: bo
   )
 }
 
-function OverrideDialog({ pending, onCancel, onConfirm }: { pending: Pending; onCancel: () => void; onConfirm: (reason: string) => void }) {
+function HopLabel({ env, a, b }: { env: SchedEnv; a: { lat: number; lng: number }; b: { lat: number; lng: number } }) {
+  const m = getTravelMinutes(a, b, env.scheduling).minutes
+  const band = travelBand(m, env.scheduling)
+  return <span className={`travel-band ${band}`}>{m} min (est.) · {BAND_LABEL[band]}</span>
+}
+
+function OverrideDialog({ pending, onCancel, onConfirm }: { pending: PendingItem[]; onCancel: () => void; onConfirm: (reason: string) => void }) {
   const [reason, setReason] = useState('')
   const ref = useRef<HTMLTextAreaElement>(null)
   useEffect(() => { ref.current?.focus() }, [])
@@ -358,16 +481,20 @@ function OverrideDialog({ pending, onCancel, onConfirm }: { pending: Pending; on
   return (
     <div className="modal-backdrop" onKeyDown={e => { if (e.key === 'Escape') onCancel() }}>
       <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="override-title">
-        <h2 id="override-title" className="sch-dialog-title"><AlertTriangle size={18} />Scheduling rule broken</h2>
-        <p className="muted">{pending.job.jobNo} to {pending.tech.name}, {fmtDate(pending.date)} at {pending.time}.</p>
-        <ul className="sch-violations">{pending.violations.map(v => <li key={v.kind}><strong>{KIND_LABEL[v.kind]}</strong><span>{v.message}</span></li>)}</ul>
-        {pending.job.selfService && <p className="sch-note warn">This is a customer self-service booking. Customers cannot exceed these limits, so only an admin can override.</p>}
+        <h2 id="override-title" className="sch-dialog-title"><AlertTriangle size={18} />Scheduling rules broken</h2>
+        {pending.map(item => (
+          <div key={item.job.id} className="sch-pending">
+            <p className="muted">{item.job.jobNo} to {item.team.name}, {fmtDate(item.date)} at {item.time}.</p>
+            <ul className="sch-violations">{item.violations.map(v => <li key={v.kind + v.message}><strong>{KIND_LABEL[v.kind]}</strong><span>{v.message}</span></li>)}</ul>
+            {item.job.selfService && <p className="sch-note warn">Customer self-service booking. Customers cannot exceed these limits, so only an admin can override.</p>}
+          </div>
+        ))}
         <label>Reason for override (required)
-          <textarea ref={ref} rows={3} value={reason} onChange={e => setReason(e.target.value)} placeholder="For example: customer emergency, technician agreed to extra hours" />
+          <textarea ref={ref} rows={3} value={reason} onChange={e => setReason(e.target.value)} placeholder="For example: customer emergency, team agreed to extra hours" />
         </label>
-        <p className="muted sch-hint">The assignment is saved. The override and your reason are written to the job history and highlighted on the calendar.</p>
+        <p className="muted sch-hint">The assignments are saved. The override and your reason are written to each job history and highlighted on the calendar.</p>
         <div className="modal-footer">
-          <button className="button secondary" onClick={onCancel}>Cancel</button>
+          <button className="button secondary" onClick={onCancel}>Back to drafts</button>
           <button className="button danger" disabled={!valid} onClick={() => onConfirm(reason.trim())}>Override anyway</button>
         </div>
       </div>
@@ -375,22 +502,28 @@ function OverrideDialog({ pending, onCancel, onConfirm }: { pending: Pending; on
   )
 }
 
-function ManualDialog({ job, techs, today, onCancel, onSubmit }: { job: Job; techs: User[]; today: string; onCancel: () => void; onSubmit: (tech: User, date: string, time: string) => void }) {
-  const [techId, setTechId] = useState(techs[0]?.id ?? '')
+function ManualDialog({ env, job, teams, today, onCancel, onSubmit }: { env: SchedEnv; job: Job; teams: Team[]; today: string; onCancel: () => void; onSubmit: (team: Team, date: string, time: string) => void }) {
+  const slot = slotOf(job, env.jobTypes)
+  const win = env.scheduling.windows[slot]
+  const [teamId, setTeamId] = useState(teams[0]?.id ?? '')
   const [date, setDate] = useState(today)
-  const [time, setTime] = useState('09:00')
-  const times = Array.from({ length: SLOTS }, (_, i) => fromMin(DAY_START + i * SLOT_MINUTES))
+  const team = teams.find(t => t.id === teamId)
+  const [time, setTime] = useState(win.start)
+  const times: string[] = []
+  for (let t = toMin(win.start); t + win.minutes <= toMin(win.end); t += SLOT_MINUTES) times.push(fromMin(t))
+  const violations = team && date ? checkTeamPlacement(env, job, team, date, time) : []
   return (
     <div className="modal-backdrop" onKeyDown={e => { if (e.key === 'Escape') onCancel() }}>
       <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="manual-title">
         <h2 id="manual-title">Schedule {job.jobNo}</h2>
-        <p className="muted">{job.subject}</p>
-        <label>Technician<select className="field-input" value={techId} onChange={e => setTechId(e.target.value)}>{techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+        <p className="muted">{job.subject} · {SLOT_LABEL[slot]} job, {win.minutes / 60}h, between {win.start} and {win.end}</p>
+        <label>Team<select className="field-input" value={teamId} onChange={e => setTeamId(e.target.value)}>{teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
         <label>Date<input className="field-input" type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
         <label>Start time<select className="field-input" value={time} onChange={e => setTime(e.target.value)}>{times.map(t => <option key={t}>{t}</option>)}</select></label>
+        {violations.length > 0 && <ul className="sch-violations">{violations.map(v => <li key={v.kind + v.message}><strong>{KIND_LABEL[v.kind]}</strong><span>{v.message}</span></li>)}</ul>}
         <div className="modal-footer">
           <button className="button secondary" onClick={onCancel}>Cancel</button>
-          <button className="button primary" disabled={!date || !techId} onClick={() => onSubmit(techs.find(t => t.id === techId)!, date, time)}>Schedule</button>
+          <button className="button primary" disabled={!date || !team} onClick={() => team && onSubmit(team, date, time)}>Add to drafts</button>
         </div>
       </div>
     </div>
