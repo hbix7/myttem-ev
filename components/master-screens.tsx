@@ -171,6 +171,15 @@ export function SettingsScreen() {
       </section>
 
       <section className="card settings-block">
+        <h2>Invoice outstanding threshold</h2>
+        <p className="muted">Submitted invoices that are still unpaid after this many days are automatically marked Outstanding in the tracker.</p>
+        <div className="inline-add">
+          <input type="number" min="1" max="365" value={settings.outstandingAfterDays ?? 30} aria-label="Days before an unpaid submitted invoice is Outstanding" onChange={e => useStore.setState(s => ({ settings: { ...s.settings, outstandingAfterDays: Math.min(365, Math.max(1, Number(e.target.value) || 30)) } }))} />
+          <span className="muted">days after submission</span>
+        </div>
+      </section>
+
+      <section className="card settings-block">
         <h2>SLA hours per job type</h2>
         <p className="muted">The clock runs while a job is open and stops at Completed. Warning at the percentage below, breach at 100%.</p>
         <div className="table-wrap"><table>
