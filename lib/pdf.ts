@@ -151,5 +151,7 @@ export async function previewTemplatePdf(tpl: PdfTemplate) {
   autoTable(doc, { startY: y, head: [['Code', 'Description', 'Qty', 'Unit price', 'Amount']], body: [['SVC-001', 'Sample service line', '1', rm(250), rm(250)], ['PRT-014', 'Sample part', '2', rm(90), rm(180)]], ...tableTheme })
   const after = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20
   const end = totals(doc, W, after, [['Total', rm(430), true]])
-  finish(doc, tpl, end, `${tpl.id}-sample`, ['Authorised signature'])
-}
+  const file = `${tpl.id}-sample`
+  finish(doc, tpl, end, file, ['Authorised signature'])
+  return `${file}.pdf`
+  }
