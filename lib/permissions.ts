@@ -18,7 +18,7 @@ export const PERM_MODULES: PermModule[] = [
   { id: 'inventory', label: 'Item master, price list, assets, sites', group: 'Inventory', paths: ['/master', '/assets', '/sites'] },
   { id: 'ratecards', label: 'Rate cards and pricing', group: 'Sales', paths: ['/master/rate-cards'] },
   { id: 'customers', label: 'Customers', group: 'Inventory', paths: ['/customers'] },
-  { id: 'ev', label: 'EV pipeline and deadlines', group: 'EV', paths: ['/ev/pipeline', '/ev/deadlines', '/ev/conversion'] },
+  { id: 'ev', label: 'EV pipeline and deadlines', group: 'EV', paths: ['/ev/pipeline', '/ev/deadlines', '/ev/conversion', '/admin/tracker-import'] },
   { id: 'claims', label: 'EV chargeback claims', group: 'EV', paths: ['/ev/chargebacks'] },
   { id: 'communication', label: 'Communication', group: 'Communication', paths: ['/communication', '/intake', '/sync-conflicts'] },
   { id: 'reports', label: 'Reports', group: 'Insights', paths: ['/reports'] },

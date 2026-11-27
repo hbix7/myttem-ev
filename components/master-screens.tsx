@@ -94,7 +94,7 @@ export function VocabularyScreen() {
     const v = draft.trim()
     if (!v) return
     if (list.some(x => x.value.toLowerCase() === v.toLowerCase())) return toast.error('That value already exists')
-    if (tab === 'jobType') useStore.setState(s => ({ jobTypes: [...s.jobTypes, { id: crypto.randomUUID(), tenant_id: TENANT, active: true, code: v.slice(0, 3).toUpperCase(), name: v, isEv: false, slaHours: 48, warnPct: 80 }] }))
+    if (tab === 'jobType') useStore.setState(s => ({ jobTypes: [...s.jobTypes, { id: crypto.randomUUID(), tenant_id: TENANT, active: true, code: v.slice(0, 3).toUpperCase(), name: v, isEv: false, slaHours: 48, warnPct: 0.8 }] }))
     else addVocab(tab, v)
     setDraft(''); toast.success('Value added')
   }
@@ -171,6 +171,15 @@ export function SettingsScreen() {
       </section>
 
       <section className="card settings-block">
+        <h2>Invoice outstanding threshold</h2>
+        <p className="muted">Submitted invoices that are still unpaid after this many days are automatically marked Outstanding in the tracker.</p>
+        <div className="inline-add">
+          <input type="number" min="1" max="365" value={settings.outstandingAfterDays ?? 30} aria-label="Days before an unpaid submitted invoice is Outstanding" onChange={e => useStore.setState(s => ({ settings: { ...s.settings, outstandingAfterDays: Math.min(365, Math.max(1, Number(e.target.value) || 30)) } }))} />
+          <span className="muted">days after submission</span>
+        </div>
+      </section>
+
+      <section className="card settings-block">
         <h2>SLA hours per job type</h2>
         <p className="muted">The clock runs while a job is open and stops at Completed. Warning at the percentage below, breach at 100%.</p>
         <div className="table-wrap"><table>
@@ -178,7 +187,7 @@ export function SettingsScreen() {
           <tbody>{jobTypes.filter(t => t.active !== false).map(t => (
             <tr key={t.id}><td>{t.name}</td>
               <td><input className="narrow" type="number" min="1" value={t.slaHours} aria-label={`${t.name} SLA hours`} onChange={e => patchType(t.id, { slaHours: Math.max(1, Number(e.target.value) || 1) })} /></td>
-              <td><input className="narrow" type="number" min="1" max="100" value={t.warnPct} aria-label={`${t.name} warning percent`} onChange={e => patchType(t.id, { warnPct: Math.min(100, Math.max(1, Number(e.target.value) || 80)) })} /></td></tr>))}
+              <td><input className="narrow" type="number" min="1" max="100" value={Math.round((t.warnPct > 1 ? t.warnPct / 100 : t.warnPct) * 100)} aria-label={`${t.name} warning percent`} onChange={e => patchType(t.id, { warnPct: Math.min(100, Math.max(1, Number(e.target.value) || 80)) / 100 })} /> %</td></tr>))}
           </tbody></table></div>
       </section>
 

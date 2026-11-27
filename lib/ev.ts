@@ -60,7 +60,7 @@ export function evDeadlines(job: Job, settings: Pick<Settings, 'deadlineDays'>, 
     const doneAt = ev?.at[def.milestone]
     const msLeft = new Date(dueAt).getTime() - at.getTime()
     let state: DeadlineState
-    if (ev?.status === 'Lost' && !doneAt) state = 'Not applicable'
+    if ((ev?.status === 'Lost' && !doneAt) || ev?.legacy) state = 'Not applicable'
     else if (doneAt) state = new Date(doneAt).getTime() <= new Date(dueAt).getTime() ? 'Done on time' : 'Done late'
     else if (msLeft < 0) state = 'Overdue'
     else if (msLeft < Math.min(86400000, days * 86400000 * 0.25)) state = 'At risk'
@@ -281,7 +281,7 @@ export function runEvAutomation() {
   const t = getNow().getTime()
   for (const job of s.jobs) {
     const ev = job.ev
-    if (!ev || !['Quoted', 'Follow-up'].includes(ev.status) || !ev.at.quoted) continue
+    if (!ev || ev.legacy || !['Quoted', 'Follow-up'].includes(ev.status) || !ev.at.quoted) continue
     const daysSince = Math.floor((t - new Date(ev.at.quoted).getTime()) / 86400000)
     const due = evDeadlines(job, s.settings)[3]
     const pastDeadline = new Date(due.dueAt).getTime() < t

@@ -196,16 +196,20 @@ export function EvPipelinePage() {
   const settings = useStore(s => s.settings)
   const role = useStore(s => s.users.find(u => u.id === s.currentUserId)?.role)
   const [open, setOpen] = useState(false)
+  const [showCancelled, setShowCancelled] = useState(false)
   if (!hydrated) return null
-  const cases = jobs.filter(isEvCase)
+  const allCases = jobs.filter(isEvCase)
+  const cancelled = allCases.filter(j => j.ev!.caseFlag === 'Cancelled')
+  const cases = allCases.filter(j => j.ev!.caseFlag !== 'Cancelled')
   return (
     <AppShell crumb="EV > Pipeline">
       <PageHeader title="EV pipeline" crumb="EV > Pipeline" subtitle="Every EV case from lead to sign-off." action={role === 'admin' ? <button className="button primary" onClick={() => setOpen(true)}>+ New EV lead</button> : undefined} />
       <main className="content">
         {!cases.length && <EmptyState title="No EV cases yet" helper="Create a lead to start the pipeline." />}
+        <label className="tk-toggle"><input type="checkbox" checked={showCancelled} onChange={e => setShowCancelled(e.target.checked)} />Show cancelled ({cancelled.length})</label>
         <div className="ev-board">
-          {EV_BOARD_COLUMNS.map(col => {
-            const items = cases.filter(j => j.ev!.status === col)
+          {[...EV_BOARD_COLUMNS, ...(showCancelled ? ['Cancelled' as const] : [])].map(col => {
+            const items = col === 'Cancelled' ? cancelled : cases.filter(j => j.ev!.status === col)
             return (
               <section key={col} className="ev-column" aria-label={col}>
                 <h2>{col} <span className="muted">{items.length}</span></h2>

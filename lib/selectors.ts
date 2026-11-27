@@ -17,6 +17,7 @@ export interface SlaInfo { state: SlaState; frozen: boolean; ratio: number; rema
 
 /* The timer runs only while a job is open and not on hold. At Completed it freezes at completedAt. */
 export function slaInfo(job: Job, type?: JobType): SlaInfo {
+  if (job.ev?.legacy) return { state: 'Met', frozen: true, ratio: 0, remainingMs: 0, overByMs: 0, label: 'Legacy row, no SLA' }
   const created = new Date(job.createdAt).getTime()
   const total = Math.max(1, new Date(job.slaDue).getTime() - created)
   const frozen = isClosed(job)
@@ -31,7 +32,7 @@ export function slaInfo(job: Job, type?: JobType): SlaInfo {
     const met = ratio <= 1
     return { state: met ? 'Met' : 'Breached', frozen, ratio, remainingMs, overByMs, label: met ? 'Met' : `Breached by ${formatDuration(overByMs)}` }
   }
-  const state: SlaState = ratio >= 1 ? 'Breached' : ratio >= (type?.warnPct ?? 0.8) ? 'Warning' : 'On track'
+  const state: SlaState = ratio >= 1 ? 'Breached' : ratio >= ((type?.warnPct ?? 0.8) > 1 ? (type?.warnPct ?? 80) / 100 : (type?.warnPct ?? 0.8)) ? 'Warning' : 'On track'
   const label = ratio >= 1 ? `${formatDuration(overByMs)} overdue` : `${formatDuration(remainingMs)} left`
   return { state, frozen, ratio, remainingMs, overByMs, label }
 }

@@ -6,6 +6,10 @@ import { Briefcase, MessageSquare, Plus } from 'lucide-react'
 import { AppShell, EmptyState, ExportMenu, FilterBar, PageHeader, ShellSkeleton, SlaCell, StatusPill, initials, useHydrated } from '@/components/shared'
 import { DataTable, type Column } from '@/components/kit'
 import { useStore } from '@/lib/store'
+import { useCommercialStore } from '@/lib/store/commercial'
+import { useOutstandingSweep } from '@/components/job/tracker-details'
+import { buildTrackerRows, exportTrackerXlsx } from '@/lib/tracker'
+import { toast } from 'sonner'
 import type { Job } from '@/lib/types'
 
 const statuses = ['Created', 'Assigned', 'In Progress', 'Completed', 'Invoiced', 'Closed']
@@ -13,7 +17,10 @@ const statuses = ['Created', 'Assigned', 'In Progress', 'Completed', 'Invoiced',
 export default function JobsPage() {
   const hydrated = useHydrated()
   const router = useRouter()
-  const { jobs, customers, users, jobTypes, principals } = useStore()
+  const { jobs, customers, users, jobTypes, principals, sites } = useStore()
+  const quotations = useCommercialStore(s => s.quotations)
+  const invoices = useCommercialStore(s => s.invoices)
+  useOutstandingSweep()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [assignee, setAssignee] = useState('')
@@ -33,6 +40,12 @@ export default function JobsPage() {
       && (!status || j.status === status)
       && (!assignee || j.technicianId === assignee) && (!type || j.jobTypeId === type) && (!principal || j.principalId === principal)
   }), [jobs, search, status, assignee, type, principal])
+
+  const exportTracker = async () => {
+    const rows = buildTrackerRows(filtered, customers, sites, quotations, invoices)
+    if (!rows.length) { toast.error('No EV jobs in this list'); return }
+    try { toast.success(`Exported ${rows.length} rows to ${await exportTrackerXlsx(rows, 'All')}`) } catch { toast.error('Export failed') }
+  }
 
   if (!hydrated) return <ShellSkeleton />
 
@@ -65,7 +78,7 @@ export default function JobsPage() {
 
   return (
     <AppShell crumb="Jobs">
-      <PageHeader title="Jobs" action={<><ExportMenu jobs={filtered} /><Link href="/jobs/new" className="button primary"><Plus size={16} />New Job</Link></>} />
+      <PageHeader title="Jobs" action={<><ExportMenu jobs={filtered} /><button className="button secondary" onClick={exportTracker}>Export tracker</button><Link href="/jobs/new" className="button primary"><Plus size={16} />New Job</Link></>} />
       <section className="content">
         <FilterBar search={search} onSearch={setSearch} chips={chips} onClear={clear}>
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Status"><option value="">All status</option>{statuses.map(x => <option key={x}>{x}</option>)}</select>
