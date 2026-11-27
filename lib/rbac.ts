@@ -60,6 +60,7 @@ export const nav: NavItem[] = [
   { section: 'Documents', label: 'PDF templates', href: '/documents/templates', roles: ['sysadmin', 'admin', 'owner'] },
   { section: 'Documents', label: 'Generated documents', href: '/documents/generated', roles: ['sysadmin', 'admin', 'owner'] },
   { section: 'Directory', label: 'Customers', href: '/customers', roles: ['sysadmin', 'admin'] },
+  { section: 'Directory', label: 'Sites', href: '/sites', roles: ['sysadmin', 'admin'] },
   { section: 'Directory', label: 'Master Data', href: '/master/items', roles: ['sysadmin', 'admin'] },
   { section: 'Communication', label: 'WhatsApp inbox', href: '/communication/whatsapp', roles: ['admin', 'owner'], flag: 'C' },
   { section: 'Communication', label: 'Email intake', href: '/communication/intake', roles: ['admin', 'owner'] },
@@ -70,6 +71,7 @@ export const nav: NavItem[] = [
   { section: 'Administration', label: 'SLA', href: '/admin/sla', roles: ['sysadmin', 'admin'] },
   { section: 'Administration', label: 'Portal Users', href: '/admin/portal-users', roles: ['sysadmin', 'admin'] },
   { section: 'Administration', label: 'Settings', href: '/settings', roles: ['sysadmin', 'admin', 'owner'] },
+  { section: 'Administration', label: 'Teams and Coverage', href: '/settings/teams', roles: ['sysadmin', 'admin', 'owner'] },
   { section: 'Administration', label: 'Users and Roles', href: '/admin/users', roles: ['sysadmin', 'owner'] },
   { section: 'Administration', label: 'Audit log', href: '/admin/audit', roles: ['sysadmin', 'owner'] },
 ]

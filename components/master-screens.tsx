@@ -10,6 +10,7 @@ import { useCommercialStore } from '@/lib/store/commercial'
 import { flagMeta, useMasterStore, type FlagKey, type VocabKind } from '@/lib/store/master'
 import { downloadCsv, readXlsxRows } from '@/lib/export'
 import { roleLabel } from '@/lib/rbac'
+import { inferLocation } from '@/lib/location'
 import type { Customer, Role } from '@/lib/types'
 
 const money = (n: number) => `RM ${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -157,6 +158,10 @@ export function SettingsScreen() {
 
       <section className="card settings-block">
         <div className="block-head"><div><h2>WhatsApp channel</h2><p className="muted">Provider, business number and credentials for the WhatsApp inbox.</p></div><Link className="button secondary" href="/settings/whatsapp">Open channel settings</Link></div>
+      </section>
+
+      <section className="card settings-block">
+        <div className="block-head"><div><h2>Teams and coverage areas</h2><p className="muted">Scheduler teams, their members, and the areas ChargeSini jobs can be booked in.</p></div><Link className="button secondary" href="/settings/teams">Manage teams and coverage</Link></div>
       </section>
 
       <section className="card settings-block">
@@ -345,7 +350,12 @@ export function AssetRegisterScreen() {
       let cu = cust.find(x => x.name.toLowerCase() === cn.toLowerCase())
       if (!cu) { cu = { id: crypto.randomUUID(), tenant_id: TENANT, name: cn, contact: '', phone: '', email: '', sqlAccCode: '', isCommercial: true }; cust.push(cu); c++ }
       let si = siteList.find(x => x.customerId === cu!.id && x.name.toLowerCase() === sn.toLowerCase())
-      if (!si) { si = { id: crypto.randomUUID(), tenant_id: TENANT, customerId: cu.id, name: sn, address: mapped(r, 'address'), postcode: '', area: '' }; siteList.push(si); s++ }
+      if (!si) {
+        const address = mapped(r, 'address')
+        const where = inferLocation(address, st.settings.coverage)
+        si = { id: crypto.randomUUID(), tenant_id: TENANT, customerId: cu.id, name: sn, address, postcode: where.postcode, area: where.area, lat: where.lat, lng: where.lng }
+        siteList.push(si); s++
+      }
       const serial = mapped(r, 'serial'), type = mapped(r, 'type')
       if (type || serial) {
         if (serial && assetList.some(x => x.serialNo === serial)) continue
