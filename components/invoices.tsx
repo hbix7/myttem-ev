@@ -98,9 +98,28 @@ export function InvoiceDetail({ id }: { id: string }) {
     <AppShell crumb={`Invoices > ${invoice.invoiceNo}`}>
       <PageHeader title={invoice.invoiceNo} subtitle={`${invoice.customer} · ${invoice.jobNo}`} action={<Link className="button secondary" href="/invoices">Back</Link>} />
       <div className="content">
-        <div className="stepper card" style={{ marginBottom: 16 }}>
-          {steps.map((s, i) => <div key={s} className={`step ${stepIndex >= i ? 'done' : ''}`}><span>{i + 1}</span><small>{s}</small></div>)}
-        </div>
+        <section className="header-card jd-head" style={{ marginBottom: 16 }}>
+          <div className="jd-head-top">
+            <div className="pill-row">
+              <span className="job-number">{invoice.invoiceNo}</span>
+              <StatusPill>{invoice.status}</StatusPill>
+              <StatusPill tone="grey">{invoice.jobNo}</StatusPill>
+              {invoice.exportBatchId && <StatusPill tone="blue">Exported to SQL</StatusPill>}
+            </div>
+          </div>
+          <ol className="jd-steps" aria-label="Invoice progress">
+            {steps.map((s, i) => {
+              const done = stepIndex > i
+              const now = stepIndex === i
+              return (
+                <li key={s} className={`jd-step ${done ? 'done' : ''} ${now ? 'now' : ''}`} aria-current={now ? 'step' : undefined}>
+                  <span className="jd-dot">{done ? <Check size={14} aria-hidden /> : i + 1}</span>
+                  <small>{s}</small>
+                </li>
+              )
+            })}
+          </ol>
+        </section>
         <div className="detail-grid">
           <section className="card">
             <div className="card-header"><div><h2>Line items</h2><p className="muted">Amounts in RM, SST {Math.round(settings.sstRate * 100)}%</p></div><StatusPill>{invoice.status}</StatusPill></div>

@@ -81,7 +81,7 @@ function Board() {
     () => ({ ...baseEnv, jobs: baseEnv.jobs.map(j => { const d = drafts[j.id]; return d ? { ...j, teamId: d.teamId, scheduledAt: stamp(d.date, d.time), scheduleState: 'Draft' as const } : j }) }),
     [baseEnv, drafts],
   )
-  const teams = env.teams.filter(t => t.active)
+  const teams = env.teams.filter(t => t.memberIds.some(id => env.users.some(u => u.id === id && u.active)))
   const isAdmin = role === 'admin'
   const online = settings.deviceOnline && browserOnline
   const canMove = isAdmin && online

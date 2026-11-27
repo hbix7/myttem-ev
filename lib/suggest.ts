@@ -43,7 +43,7 @@ function evaluate(env: SchedEnv, job: JobLike, team: Team, date: string): Candid
 export function suggestDates(env: SchedEnv, job: JobLike, dates: string[], today: string): DateSuggestion[] {
   const slot = slotOf(job, env.jobTypes)
   void minutesOf
-  const teams = env.teams.filter(t => t.active)
+  const teams = env.teams.filter(t => t.memberIds.some(id => env.users.some(u => u.id === id && u.active)))
   const rows: DateSuggestion[] = dates.map(date => {
     if (date < today) return { date, rating: 'Not available', reason: 'This date is in the past.', score: -1, slot, violations: [] }
     if (!teams.length) return { date, rating: 'Not available', reason: 'No active team.', score: -1, slot, violations: [] }
