@@ -8,6 +8,7 @@ import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
 import { Price } from '@/components/commercial'
 import { EvWorkflowPanel } from '@/components/ev-pipeline'
+import { TrackerDetailsCard } from '@/components/job/tracker-details'
 import { jobTabs } from '@/components/job/tabs'
 import { getNow } from '@/lib/clock'
 import { slaInfo, slaState } from '@/lib/selectors'
@@ -71,10 +72,20 @@ export default function JobDetail() {
     setComment(''); toast.success('Technician assigned')
   }
   const hold = () => {
-    if (job.holdSince) { store.resumeJob(job.id, comment); toast.success('Job resumed. SLA clock running.') }
+    if (job.holdSince) { store.resumeJob(job.id, comment); toast.success('Work resumed. SLA clock running.') }
     else { store.holdJob(job.id, comment || 'Awaiting customer', comment); toast.success('Job on hold. SLA clock paused.') }
     setComment('')
   }
+  const startWork = () => {
+    const now = getNow().toISOString()
+    useStore.setState(s => ({
+      jobs: s.jobs.map(j => (j.id === job.id ? { ...j, status: 'In Progress', startTime: j.startTime ?? now } : j)),
+      history: [...s.history, { id: crypto.randomUUID(), jobId: job.id, userId: s.currentUserId, event: 'Work started', fromStatus: job.status, toStatus: 'In Progress', comment: comment || undefined, at: now }],
+    }))
+    setComment(''); toast.success('Work started')
+  }
+  const complete = () => { store.completeJob(job.id); toast.success('Job completed. Job sheet generated.') }
+  const working = job.status === 'In Progress'
   const ping = (event: string) => toast.success(dispatch(job.id, event).toast)
   const post = () => {
     const body = comment.trim()
@@ -114,7 +125,7 @@ export default function JobDetail() {
               return (
                 <li key={p} className={`jd-step ${done ? 'done' : ''} ${now ? 'now' : ''}`} aria-current={now ? 'step' : undefined}>
                   <span className="jd-dot">{done ? <Check size={14} aria-hidden /> : i + 1}</span>
-                  <small>{p}</small>
+                  <small>{now && p === 'In Progress' && job.holdSince ? 'On hold' : p}</small>
                 </li>
               )
             })}
@@ -132,12 +143,15 @@ export default function JobDetail() {
                       <option value="">Assign or reassign technician</option>
                       {store.users.filter(u => u.role === 'technician').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
-                    <button className="button secondary" onClick={assign}>Assign</button>
+                    <button className="button secondary" onClick={assign}>{job.technicianId ? 'Reassign' : 'Assign'}</button>
+                    {job.status === 'Assigned' && <button className="button primary" onClick={startWork}>Start work</button>}
+                    {working && !job.holdSince && <button className="button secondary" onClick={hold}>Put on hold</button>}
+                    {working && job.holdSince && <button className="button primary" onClick={hold}>Resume work</button>}
+                    {working && !job.holdSince && <button className="button primary" onClick={complete}>Mark completed</button>}
                     {job.status === 'Completed' && !job.ev && (isEv
                       ? <button className="button primary" onClick={() => { store.raiseInvoice(job.id, comment); toast.success('Invoice raised'); setComment('') }}>Raise invoice</button>
                       : <Link className="button primary" href={`/invoices/new?jobId=${job.id}`}>Raise invoice</Link>)}
                     {job.status === 'Invoiced' && !job.ev && <button className="button primary" onClick={() => { store.closeJob(job.id, comment); toast.success('Job closed'); setComment('') }}>Close job</button>}
-                    {!['Closed', 'Invoiced'].includes(job.status) && <button className="button secondary" onClick={hold}>{job.holdSince ? 'Resume job' : 'Put on hold'}</button>}
                   </div>
                 </div>
               </section>
@@ -148,6 +162,7 @@ export default function JobDetail() {
             </div>
 
             {job.ev && <EvWorkflowPanel job={job} />}
+            {job.ev && tab === 'overview' && <TrackerDetailsCard job={job} />}
 
             {tab === 'overview' && (
               <>

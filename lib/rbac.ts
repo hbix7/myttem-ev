@@ -54,7 +54,6 @@ export const nav: NavItem[] = [
   { section: 'Commercial', label: 'Invoices', href: '/invoices', roles: ['admin', 'owner'] },
   { section: 'Commercial', label: 'Rate cards', href: '/master/rate-cards', roles: ['admin', 'owner'] },
   { section: 'EV Job', label: 'EV pipeline', href: '/ev/pipeline', roles: ['admin', 'owner'] },
-  { section: 'EV Job', label: 'Tracker', href: '/ev/tracker', roles: ['admin', 'owner'] },
   { section: 'EV Job', label: 'EV deadlines', href: '/ev/deadlines', roles: ['admin', 'owner'] },
   { section: 'EV Job', label: 'EV chargebacks', href: '/ev/chargebacks', roles: ['admin', 'owner'] },
   { section: 'EV Job', label: 'EV conversion', href: '/ev/conversion', roles: ['admin', 'owner'] },

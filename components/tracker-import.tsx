@@ -417,7 +417,7 @@ export function TrackerImportPage() {
           <h2>Import complete</h2>
           <ul>{summary.map(s => <li key={s}>{s}</li>)}</ul>
           <div className="inline-add">
-            <a className="button primary" href="/ev/tracker">Open tracker</a>
+            <a className="button primary" href="/jobs">Open jobs</a>
             <button className="button secondary" onClick={reset}>Import another file</button>
           </div>
         </section>

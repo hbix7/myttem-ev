@@ -1054,3 +1054,26 @@ button.member-chip { cursor: pointer; }
 .map-pin span { display: block; width: 22px; height: 22px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--primary); border: 2px solid var(--card); box-shadow: 0 1px 4px rgb(0 0 0 / 0.4); }
 .base-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: end; }
 @media (max-width: 720px) { .base-row { grid-template-columns: 1fr; } }
+
+/* Job detail: tracker fields */
+.tk-sections { display: flex; flex-direction: column; gap: 12px; }
+.tk-group { margin: 8px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.tk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 16px; }
+.tk-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tk-field.wide { grid-column: 1 / -1; }
+.tk-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-foreground); }
+.tk-missing { font-style: normal; font-size: 10px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--tone-amber) 18%, transparent); color: var(--tone-amber); }
+.tk-input { width: 100%; min-height: 36px; padding: 6px 10px; font: inherit; font-size: 14px; color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.tk-input:focus-visible, .tk-pill:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+textarea.tk-input { resize: vertical; }
+.tk-dt { display: flex; gap: 8px; }
+.tk-dt .tk-input { flex: 1; min-width: 0; }
+.tk-pill { min-height: 36px; padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 500; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+.tk-green { background: color-mix(in srgb, var(--tone-green) 18%, var(--card)); border-color: var(--tone-green); }
+.tk-yellow { background: color-mix(in srgb, var(--tone-amber) 18%, var(--card)); border-color: var(--tone-amber); }
+.tk-darkred { background: var(--tone-red); border-color: var(--tone-red); color: #fff; }
+.tk-blue { background: color-mix(in srgb, var(--tone-blue) 18%, var(--card)); border-color: var(--tone-blue); }
+.tk-grey { background: var(--muted); color: var(--muted-foreground); }
+.tk-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.tk-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--muted); color: var(--foreground); }
+.tk-flag { background: color-mix(in srgb, var(--tone-red) 18%, transparent); color: var(--tone-red); }
