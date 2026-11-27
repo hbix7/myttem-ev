@@ -1,6 +1,7 @@
 'use client'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { seedDate } from '@/lib/clock'
 import { templateDefs, type NumberStatus, type TemplateStatus, type VerificationStatus } from '@/lib/store/comms'
 
 export const CHARGESINI_NUMBER = '+60125550199'
@@ -51,7 +52,7 @@ export const toE164 = (value: string) => {
   return plus + digits.replace(/\+/g, '')
 }
 
-const seedConversations: Conversation[] = [
+const seedConversationsRaw: Conversation[] = [
   {
     id: 'conv-1', phone: '60123334455', name: 'Nurul Aini', jobId: 'j1', unread: 1,
     messages: [{ id: 'm1', direction: 'in', text: 'Please confirm the proposed installation date.', at: '2026-11-02T09:20:00+08:00' }],
@@ -69,6 +70,11 @@ const seedConversations: Conversation[] = [
     messages: [{ id: 'm4', direction: 'in', text: 'Can you call me about the access window?', at: '2026-11-03T08:40:00+08:00' }],
   },
 ]
+const seedConversations: Conversation[] = seedConversationsRaw.map(c => ({
+  ...c,
+  firstResponseAt: c.firstResponseAt ? seedDate(c.firstResponseAt) : c.firstResponseAt,
+  messages: c.messages.map(m => ({ ...m, at: seedDate(m.at) })),
+}))
 
 const defaultConfig: ChannelConfig = {
   provider: 'mock', businessNumber: CHARGESINI_NUMBER, twilioSid: '', twilioTokenStored: false,
@@ -135,4 +141,4 @@ export const useWhatsAppStore = create<WhatsAppState>()(persist((set) => ({
       }
     }),
   })),
-}), { name: 'myttem-whatsapp', version: 2, migrate: () => ({}) as never }))
+}), { name: 'myttem-whatsapp', version: 3, migrate: () => ({}) as never }))

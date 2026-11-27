@@ -1,8 +1,9 @@
+import { SEED_BASE_MS, seedDate } from './clock'
 import { buildPdfDataUrl } from './export'
 import { buildDocLines, docFileName, docTitle, ASSESS_CHECKS, type PrincipalCodeEv } from './evdocs'
 import type { Customer, EvCase, EvMilestone, EvStatus, GeneratedDocument, Job, JobHistory, Site } from './types'
 
-const base = new Date('2026-11-03T10:00:00+08:00')
+const base = new Date(SEED_BASE_MS)
 const T = 't-upe'
 const hoursAfter = (iso: string, h: number) => new Date(new Date(iso).getTime() + h * 3600000).toISOString()
 const ago = (h: number) => new Date(base.getTime() - h * 3600000).toISOString()
@@ -85,7 +86,7 @@ export function buildEvSeed() {
       assessment: hasAssessment ? { photos: 6 + (i % 3), measurements: `Cable run ${12 + (i % 9)} m from DB to parking bay, ${4 + (i % 4)} m trunking`, remarks: 'Existing 63A main switch has capacity. Wall mount point confirmed with customer.', checklist: Object.fromEntries(ASSESS_CHECKS.map(c => [c, true])), at: at.assessed! } : undefined,
       outcome: spec.status === 'Lost' ? 'Declined' : spec.callTask ? 'No response' : undefined,
     }
-    const scheduledEva = spec.bookedFuture ? '2026-11-05T09:00:00+08:00' : at.booked ? hoursAfter(createdAt, 12) : undefined
+    const scheduledEva = spec.bookedFuture ? seedDate('2026-11-05T09:00:00+08:00') : at.booked ? hoursAfter(createdAt, 12) : undefined
     const evaJob: Job = {
       id: jobId, jobNo, subject: `EV Assessment: ${vehicle}`, jobTypeId: 'jt3', customerId: cid, siteId: sid, principalId: spec.principal,
       status: hasAssessment ? 'Completed' : spec.bookedFuture ? 'Assigned' : 'Created', channel: i % 2 ? 'WhatsApp' : 'Portal',
@@ -111,7 +112,7 @@ export function buildEvSeed() {
       const iId = `evi${evi}`
       const done = !!at.installed
       const booked = !!at.scheduled
-      const when = spec.status === 'Scheduled' ? (evi % 2 ? '2026-11-06T10:00:00+08:00' : '2026-11-10T14:00:00+08:00') : at.installed
+      const when = spec.status === 'Scheduled' ? (evi % 2 ? seedDate('2026-11-06T10:00:00+08:00') : seedDate('2026-11-10T14:00:00+08:00')) : at.installed
       const installJob: Job = {
         id: iId, jobNo: iNo, subject: `EV charger installation: ${name}`, jobTypeId: 'jt4', customerId: cid, siteId: sid, principalId: spec.principal, parentJobId: jobId,
         status: done ? 'Completed' : booked ? 'Assigned' : 'Created', channel: 'Portal', technicianId: booked ? tech : undefined,

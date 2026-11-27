@@ -45,7 +45,7 @@ type Sender = { label: string; phone: string; name: string }
 type LogEntry = { id: string; at: string; sent: string; outcome: string; tone: string }
 
 const completeTemplate = (): Record<string, string> => ({
-  customerName: 'Aisha Rahman', phone: '012-3456789', address: 'Bangsar South, KL', vehicleModel: 'BYD Atto 3', chargerModel: '7kW AC wallbox', preferredDate: '18 Nov 2026',
+  customerName: 'Aisha Rahman', phone: '012-3456789', address: 'Bangsar South, KL', vehicleModel: 'BYD Atto 3', chargerModel: '7kW AC wallbox', preferredDate: new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' }),
 })
 
 export function WhatsAppSandbox() {

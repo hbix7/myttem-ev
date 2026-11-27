@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getNow } from '@/lib/clock'
+import { getNow, todayKL, addDays, seedDate } from '@/lib/clock'
 import { useStore } from '@/lib/store'
 import { makeJobSheetDocument, OFFICE_EMAIL } from '@/lib/jobsheet'
 import type { Attachment, AvailabilityDay, ChecklistAnswer, GeneratedDocument, Job, JobHistory, SyncConflict, SyncQueueEntry } from '@/lib/types'
@@ -27,10 +27,10 @@ type FieldState = {
 }
 
 const seededConflicts: SyncConflict[] = [
-  { id: 'sc-10', jobId: 'j10', detectedAt: '2026-11-03T09:42:00+08:00', fields: ['endTime', 'remarks'], status: 'Unresolved', deviceValues: { endTime: '2026-11-03 09:30', remarks: 'Panel tested and safe.' }, serverValues: { endTime: '2026-11-03 09:10', remarks: 'Awaiting office review.' } },
-  { id: 'sc-9', jobId: 'j9', detectedAt: '2026-11-02T16:20:00+08:00', fields: ['checklist answer'], status: 'Resolved', deviceValues: { 'checklist answer': 'Yes' }, serverValues: { 'checklist answer': 'No' } },
+  { id: 'sc-10', jobId: 'j10', detectedAt: seedDate('2026-11-03T09:42:00+08:00'), fields: ['endTime', 'remarks'], status: 'Unresolved', deviceValues: { endTime: `${todayKL()} 09:30`, remarks: 'Panel tested and safe.' }, serverValues: { endTime: `${todayKL()} 09:10`, remarks: 'Awaiting office review.' } },
+  { id: 'sc-9', jobId: 'j9', detectedAt: seedDate('2026-11-02T16:20:00+08:00'), fields: ['checklist answer'], status: 'Resolved', deviceValues: { 'checklist answer': 'Yes' }, serverValues: { 'checklist answer': 'No' } },
 ]
-const availability = Array.from({ length: 14 }, (_, i) => { const d = new Date('2026-11-03T00:00:00+08:00'); d.setDate(d.getDate() + i); return { date: d.toISOString().slice(0, 10), maxInstalls: i % 3 === 0 ? 3 : 2, booked: i % 4 } })
+const availability = Array.from({ length: 14 }, (_, i) => { return { date: addDays(todayKL(), i), maxInstalls: i % 3 === 0 ? 3 : 2, booked: i % 4 } })
 const offline = (get: () => FieldState) => !useStore.getState().settings.deviceOnline
 const enqueue = (set: any, get: () => FieldState, jobId: string, action: SyncQueueEntry['action'], payload?: Record<string,string>) => { const entry = { id: crypto.randomUUID(), jobId, action, payload, at: getNow().toISOString() }; set((s: FieldState) => ({ queue: [...s.queue, entry] })); if (!offline(get)) get().flush() }
 
@@ -56,4 +56,4 @@ export const useFieldStore = create<FieldState>()(persist((set, get) => ({
   flush: () => { const { queue, armedConflict } = get(); if (!queue.length) return; const first = queue[0]; if (armedConflict) { set(s => ({ conflicts: [...s.conflicts, { id: crypto.randomUUID(), jobId: first.jobId, detectedAt: getNow().toISOString(), fields: ['endTime', 'checklist answer', 'remarks'], status: 'Unresolved', deviceValues: { endTime: 'Device 18:00', 'checklist answer': 'Yes', remarks: 'Captured offline' }, serverValues: { endTime: 'Server 17:45', 'checklist answer': 'No', remarks: 'Office copy' } }], armedConflict: false })); return } const jobIds = [...new Set(queue.map(q => q.jobId))]; set(s => ({ queue: [], jobs: s.jobs.map(j => jobIds.includes(j.id) ? { ...j, status: 'Completed' } : j), documents: [...s.documents, ...jobIds.map(jobId => ({ id: crypto.randomUUID(), jobId, docType: 'Job Sheet' as const, createdAt: getNow().toISOString(), status: 'Generated' as const }))], history: [...s.history, ...jobIds.map(jobId => ({ id: crypto.randomUUID(), jobId, userId: 'u4', event: 'Synced from device', toStatus: 'Completed' as const, at: getNow().toISOString() }))] }));
   },
   resolveConflict: (id, mode, values) => { const c = get().conflicts.find(x => x.id === id); if (!c) return; const chosen = mode === 'device' ? c.deviceValues : mode === 'server' ? c.serverValues : values || c.serverValues; set(s => ({ conflicts: s.conflicts.map(x => x.id === id ? { ...x, status: 'Resolved' } : x), jobs: s.jobs.map(j => j.id === c.jobId ? { ...j, status: mode === 'device' ? 'Completed' : j.status, endTime: chosen.endTime || j.endTime, remarks: chosen.remarks || j.remarks } : j), history: [...s.history, { id: crypto.randomUUID(), jobId: c.jobId, userId: 'u2', event: `Sync conflict resolved (${mode})`, at: getNow().toISOString() }] })); }
-}), { name: 'myttem-field-store' }))
+}), { name: 'myttem-field-store', version: 1, migrate: () => ({}) as never }))

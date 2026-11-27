@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getNow } from '@/lib/clock'
+import { getNow, SEED_BASE_MS } from '@/lib/clock'
 
 export type ClaimStatus = 'Raised' | 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Paid'
 export const CLAIM_FLOW: ClaimStatus[] = ['Raised', 'Submitted', 'Under Review', 'Approved', 'Paid']
@@ -12,7 +12,7 @@ export interface Claim {
   attachments: string[]; notes: { at: string; by: string; text: string }[]; timeline: ClaimEvent[]; rejectedReason?: string
 }
 
-const base = new Date('2026-11-03T10:00:00+08:00').getTime()
+const base = SEED_BASE_MS
 const day = 86400000
 const iso = (d: number) => new Date(base + d * day).toISOString()
 const mk = (n: number, jobNo: string, customer: string, principal: string, amount: number, reason: string, status: ClaimStatus, raised: number, due: number, steps: ClaimStatus[]): Claim => ({
@@ -71,7 +71,7 @@ export const useClaimStore = create<ClaimState>()(persist((set) => ({
   })),
   addNote: (id, by, text) => set(s => ({ claims: s.claims.map(c => c.id === id ? { ...c, notes: [...c.notes, { at: getNow().toISOString(), by, text }] } : c) })),
   addAttachment: (id, name) => set(s => ({ claims: s.claims.map(c => c.id === id ? { ...c, attachments: [...c.attachments, name] } : c) })),
-}), { name: 'myttem-claims', version: 1 }))
+}), { name: 'myttem-claims', version: 2, migrate: () => ({}) as never }))
 
 export const claimDaysLeft = (c: Claim) => Math.ceil((new Date(c.dueAt).getTime() - getNow().getTime()) / day)
 export const isClaimOpen = (c: Claim) => !['Paid', 'Rejected'].includes(c.status)

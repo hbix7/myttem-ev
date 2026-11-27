@@ -4,11 +4,11 @@ import { persist } from 'zustand/middleware'
 import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
 import { useClaimStore } from '@/lib/store/claims'
-import { getNow } from '@/lib/clock'
+import { getNow, SEED_BASE_MS } from '@/lib/clock'
 
 export interface AuditEntry { id: string; at: string; userId: string; userName: string; role: string; module: string; action: string; target: string; detail?: string }
 
-const seedAt = (h: number) => new Date(new Date('2026-11-03T10:00:00+08:00').getTime() - h * 3600000).toISOString()
+const seedAt = (h: number) => new Date(SEED_BASE_MS - h * 3600000).toISOString()
 const seed: AuditEntry[] = [
   { id: 'a1', at: seedAt(2), userId: 'u2', userName: 'Siti Aminah', role: 'admin', module: 'Quotations', action: 'Sent for approval', target: 'Quotation over RM 3,000' },
   { id: 'a2', at: seedAt(5), userId: 'u3', userName: "Dato' Ramesh", role: 'owner', module: 'Quotations', action: 'Approved', target: 'Quotation sent to customer' },
@@ -26,7 +26,7 @@ export const useAuditStore = create<AuditState>()(persist((set) => ({
     const user = useStore.getState().users.find(u => u.id === e.userId)
     set(s => ({ entries: [{ ...e, id: crypto.randomUUID(), at: e.at ?? getNow().toISOString(), userName: user?.name ?? 'System', role: user?.role ?? 'system' }, ...s.entries].slice(0, 500) }))
   },
-}), { name: 'myttem-audit', version: 1 }))
+}), { name: 'myttem-audit', version: 2, migrate: () => ({}) as never }))
 
 export function logAudit(module: string, action: string, target: string, detail?: string) {
   useAuditStore.getState().add({ userId: useStore.getState().currentUserId, module, action, target, detail })

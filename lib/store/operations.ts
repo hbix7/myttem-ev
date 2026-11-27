@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store'
 import { evOnScheduled, createEvJob } from '@/lib/ev'
 import { LOCKED, checkTeamPlacement, dayOf, fmtDate, isBlocking, leadTechFor, minutesOf, slotOf, stamp, timeOf, type SchedEnv, type TechAvailability, type Violation } from '@/lib/scheduling'
 import type { BookingOptions, Team } from '@/lib/types'
-import { getNow } from '@/lib/clock'
+import { getNow, todayKL, addDays, seedDate, seedDmy } from '@/lib/clock'
 import { dispatch } from '@/lib/messaging'
 import { useWhatsAppStore, type WaMessage } from '@/lib/store/whatsapp'
 import { normalizePhone, parseTemplate, type InboundMessage } from '@/lib/whatsapp'
@@ -17,22 +17,23 @@ export type ScheduleResult = { ok:true; overridden:boolean } | { ok:false; reaso
 type EmailMode = 'manual' | 'auto'
 type OperationsState = { teams:Team[]; addTeam:(t:Partial<Team>)=>string; updateTeam:(id:string,patch:Partial<Team>)=>void; confirmBooking:(jobId:string)=>ScheduleResult; submitBooking:(token:string, bookingOptions:BookingOptions, chosenDate:string)=>ScheduleResult; availability:Availability[]; techAvailability:Record<string,TechAvailability>; leads:Lead[]; emailMode:EmailMode; setEmailMode:(mode:EmailMode)=>void; conflictSimulation:boolean; scheduleJob:(jobId:string, teamId:string, date:string, time:string, overrideReason?:string)=>ScheduleResult; toggleDayOff:(technicianId:string, date:string)=>ScheduleResult; confirmLead:(id:string, fields:Partial<Lead>)=>string|undefined; discardLead:(id:string)=>void; addLead:(lead:Omit<Lead,'id'>)=>string; receiveEmail:(from:string,subject:string,body:string)=>'draft'|'manual'; ingestInbound:(messages:InboundMessage[])=>IngestSummary; toggleConflictSimulation:()=>void }
 export type IngestSummary = { jobs:number; messages:number; duplicates:number }
-const dates = Array.from({length:14},(_,i)=>{const d=new Date('2026-11-03T00:00:00+08:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10)})
+const dates = Array.from({length:14},(_,i)=>addDays(todayKL(),i))
 const techs=['u4','u5','u6']
 const availability:Availability[] = dates.flatMap((date,di)=>techs.map((technicianId,ti)=>({date,technicianId,maxInstalls:2,booked:(di===1&&ti===0)||(di===4&&ti===1)||(di===6&&ti===2)?2:((di+ti)%3===0?1:0)})))
 const techAvailability:Record<string,TechAvailability>={
 u4:{workStart:'08:00',workEnd:'18:00',workDays:[1,2,3,4,5,6],daysOff:[]},
-u5:{workStart:'08:30',workEnd:'17:30',workDays:[1,2,3,4,5],daysOff:['2026-11-06']},
-u6:{workStart:'09:00',workEnd:'18:00',workDays:[1,2,3,4,5,6],daysOff:['2026-11-09']}}
+u5:{workStart:'08:30',workEnd:'17:30',workDays:[1,2,3,4,5],daysOff:[addDays(todayKL(),3)]},
+u6:{workStart:'09:00',workEnd:'18:00',workDays:[1,2,3,4,5,6],daysOff:[addDays(todayKL(),6)]}}
 const teamSeed:Team[]=[{id:'team-a',name:'Team A',colour:'#3d6b5c',active:true,memberIds:['u4','u5','u6']},{id:'team-b',name:'Team B',colour:'#8a6a3b',active:false,memberIds:[]}]
 const envOf=(teams:Team[],techAvailability:Record<string,TechAvailability>):SchedEnv=>{const c=useStore.getState();return {jobs:c.jobs,jobTypes:c.jobTypes,sites:c.sites,customers:c.customers,principals:c.principals,teams,users:c.users,techAvailability,capacity:c.settings.techDailyCapacity,scheduling:c.settings.scheduling,base:c.settings.baseLocation,coverage:c.settings.coverage}}
 const isOnline=()=>useStore.getState().settings.deviceOnline&&(typeof navigator==='undefined'||navigator.onLine!==false)
 const currentRole=()=>{const s=useStore.getState();return s.users.find(u=>u.id===s.currentUserId)?.role}
 const note=(jobId:string,event:string,comment?:string)=>useStore.setState(s=>({history:[...s.history,{id:crypto.randomUUID(),jobId,userId:s.currentUserId,event,comment,at:getNow().toISOString()}]}))
-const leads:Lead[]=[
+const leadSeed:Lead[]=[
 {id:'lead-1',kind:'email',status:'Draft',from:'nurul.huda@example.com',subject:'EV charger assessment request',receivedAt:'2026-11-03T08:42:00+08:00',raw:'Customer Name: Nurul Huda\nPhone: 013-8889900\nAddress: Cheras\nVehicle Model: Proton e.MAS 7\nCharger Model: 7kW AC\nPreferred Assessment Date: 12/11/2026',customerName:'Nurul Huda',phone:'013-8889900',address:'Cheras',vehicleModel:'Proton e.MAS 7',chargerModel:'7kW AC',preferredDate:'12/11/2026'},
 {id:'lead-2',kind:'email',status:'Draft',from:'daniel.tan@example.com',subject:'Home charger quote',receivedAt:'2026-11-03T09:10:00+08:00',raw:'Customer Name: Daniel Tan\nPhone: 012-4442211\nAddress: Puchong\nVehicle Model: Zeekr-style vehicle\nCharger Model: 7kW AC\nPreferred Assessment Date: 14/11/2026',customerName:'Daniel Tan',phone:'012-4442211',address:'Puchong',vehicleModel:'Zeekr-style vehicle',chargerModel:'7kW AC',preferredDate:'14/11/2026'},
 {id:'lead-3',kind:'email',status:'Manual',from:'info@greenpark-condo.example',subject:'Charging bays for our condominium',receivedAt:'2026-11-03T10:05:00+08:00',raw:'Hi, our management committee is looking at EV charging bays for the visitor car park. Could someone call us to discuss options?',customerName:'',phone:'',address:'',vehicleModel:'',chargerModel:'',preferredDate:''}]
+const leads:Lead[]=leadSeed.map(l=>({...l,receivedAt:l.receivedAt?seedDate(l.receivedAt):l.receivedAt,raw:l.raw?seedDmy(l.raw):l.raw,preferredDate:l.preferredDate?seedDmy(l.preferredDate):l.preferredDate}))
 export const useOperationsStore=create<OperationsState>()(persist((set,get)=>({teams:teamSeed,addTeam:t=>{const id=crypto.randomUUID();set(s=>({teams:[...s.teams,{id,name:t.name||`Team ${String.fromCharCode(65+s.teams.length)}`,colour:t.colour||'#5b6b8c',active:t.active??true,memberIds:t.memberIds||[]}]}));return id},updateTeam:(id,patch)=>set(s=>({teams:s.teams.map(t=>t.id===id?{...t,...patch}:t)})),availability,techAvailability,leads,emailMode:'manual' as EmailMode,setEmailMode:mode=>set({emailMode:mode}),conflictSimulation:false,toggleConflictSimulation:()=>set(s=>({conflictSimulation:!s.conflictSimulation})),scheduleJob:(jobId,teamId,date,time,overrideReason)=>{
 const core=useStore.getState()
 if(currentRole()!=='admin')return {ok:false,reason:'forbidden',message:'Only admins can schedule jobs. Technicians cannot reschedule.'}
@@ -109,5 +110,5 @@ summary.jobs++
 }else{note(open!.id,'WhatsApp conversation linked',`Message from +${m.from} added to this job`);summary.messages++}
 useWhatsAppStore.getState().addConversation({id:crypto.randomUUID(),phone:m.from,name,jobId,unread:1,messages:[message]})
 }
-return summary}}),{name:'myttem-operations',version:4,migrate:()=>({}) as never}))
+return summary}}),{name:'myttem-operations',version:5,migrate:()=>({}) as never}))
 export type {Lead, Availability}
