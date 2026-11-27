@@ -549,12 +549,50 @@ button.countdown:hover { background: var(--active); }
 .trend-line { height: 4px; background: var(--muted); border-radius: 4px; }
 .job-count { font-variant-numeric: tabular-nums; font-weight: 600; }
 .status-pill { display: inline-flex; }
-.availability, .date-strip, .slot-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+.availability, .slot-grid { display: flex; gap: 8px; flex-wrap: wrap; }
 .data-table { min-width: 640px; }
 .conflict-table, .conflict-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); }
 .drawer-title { font-size: 18px; font-weight: 600; }
-.booking-page { min-height: 100vh; background: var(--background); padding: 32px 16px; }
-.booking-logo { font-weight: 600; font-size: 16px; }
+.bk-page { min-height: 100vh; background: var(--background); padding: 24px 16px 48px; display: flex; justify-content: center; align-items: flex-start; }
+.bk-shell { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
+.bk-brand { display: flex; align-items: center; gap: 12px; padding: 4px 4px 0; }
+.bk-brand strong { display: block; font-size: 16px; line-height: 1.2; }
+.bk-brand small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.bk-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.bk-title h1, .bk-message h1 { font-size: 22px; line-height: 1.25; font-weight: 600; margin: 0; text-wrap: balance; }
+.bk-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.bk-steps { list-style: none; margin: 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; border-radius: var(--radius); background: var(--muted); font-size: 14px; line-height: 1.45; }
+.bk-steps li { display: flex; align-items: flex-start; gap: 10px; }
+.bk-steps b { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); font-size: 12px; font-weight: 600; }
+.bk-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bk-slot { position: relative; display: flex; flex-direction: column; gap: 2px; min-height: 58px; padding: 9px 12px; border-radius: var(--radius); border: 1px dashed var(--input); background: transparent; }
+.bk-slot-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.bk-slot-empty { font-size: 14px; color: var(--muted-foreground); }
+.bk-slot strong { font-size: 15px; font-weight: 600; padding-right: 22px; }
+.bk-slot.next { border-style: solid; border-color: var(--foreground); }
+.bk-slot.filled { border-style: solid; border-color: var(--border); background: var(--background); }
+.bk-slot.filled.first { border-color: var(--tone-green); background: color-mix(in srgb, var(--tone-green) 10%, var(--card)); }
+.bk-slot-clear { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: var(--muted-foreground); }
+.bk-slot-clear:hover { background: var(--hover); color: var(--foreground); }
+.bk-card .sd-wrap { max-width: none; margin-top: 0; }
+.bk-card .sd-cal { padding: 14px; }
+.bk-card .sd-day { min-height: 52px; font-size: 15px; position: relative; }
+.bk-card .sd-wrap.customer .sd-legend { justify-content: center; }
+.sd-order { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; }
+.bk-submit { height: 44px; font-size: 15px; }
+.bk-help { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.bk-help a { color: var(--foreground); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.bk-message { align-items: center; text-align: center; padding: 32px 24px; gap: 12px; }
+.bk-message p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted-foreground); max-width: 40ch; }
+.bk-icon { --tone: var(--tone-grey); width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--tone) 16%, var(--card)); color: color-mix(in srgb, var(--tone) 80%, var(--foreground)); }
+.bk-date-hero { font-size: 18px !important; font-weight: 600; color: var(--foreground) !important; }
+.bk-sent { list-style: none; margin: 4px 0; padding: 0; width: 100%; text-align: left; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.bk-sent li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; font-size: 14px; }
+.bk-sent li + li { border-top: 1px solid var(--border); }
+.bk-sent li span { color: var(--muted-foreground); }
+.bk-slot.filled .bk-slot-label { padding-right: 24px; }
+.bk-slot strong { white-space: nowrap; }
+@media (min-width: 640px) { .bk-page { padding-top: 48px; } .bk-card { padding: 28px; } }
 .tech-detail { display: flex; flex-direction: column; gap: 16px; }
 .large { height: 220px; }
 .amber { --tone: var(--tone-amber); }
@@ -760,8 +798,8 @@ button.countdown:hover { background: var(--active); }
 .sch-violations li { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--tone-amber) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--tone-amber) 28%, var(--border)); font-size: 13px; }
 .sch-hint { font-size: 12px; margin-top: 10px; }
 .modal-card .sch-note { margin: 14px 0 0; }
-.date-strip button:disabled, .slot-grid button:disabled { opacity: 0.45; cursor: not-allowed; }
-.booking-error { color: var(--tone-red); font-size: 14px; margin: 12px 0; }
+.slot-grid button:disabled { opacity: 0.45; cursor: not-allowed; }
+.booking-error { color: var(--tone-red); font-size: 14px; margin: 0; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--tone-red) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--tone-red) 30%, var(--border)); }
 
 /* EV pipeline */
 .ev-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px}
@@ -1062,8 +1100,6 @@ button.member-chip { cursor: pointer; }
 .sch-pending + .sch-pending { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .sch-empty { padding: 32px; text-align: center; color: var(--muted-foreground); }
 .sch-daylabel { text-align: left; border-left: 0; border-top: 0; border-right: 0; cursor: pointer; }
-.date-strip button small { display: block; font-size: 11px; color: var(--muted-foreground); }
-.date-strip button.recommended { border-color: var(--tone-green); }
 .size-note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: color-mix(in srgb, var(--tone-amber) 55%, var(--foreground)); margin-top: 4px; }
 .suggest-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .suggest-row { display: grid; grid-template-columns: 110px 120px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--card); text-align: left; }

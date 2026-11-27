@@ -24,7 +24,26 @@ function statusOf(s?: DateSuggestion) {
   return 'na'
 }
 
-export function AvailabilityCalendar({ suggestions, selected, onPick }: { suggestions: DateSuggestion[]; selected?: string; onPick: (s: DateSuggestion) => void }) {
+const CUSTOMER_LEGEND = [
+  { cls: 'rec', label: 'Best fit', hint: 'Easiest for our team' },
+  { cls: 'ok', label: 'Available', hint: 'We can take this date' },
+  { cls: 'na', label: 'Fully booked', hint: 'We cannot take this date' },
+] as const
+
+const PICK_LABELS = ['1', '2', '3', '4']
+
+type Props = {
+  suggestions: DateSuggestion[]
+  selected?: string
+  onPick: (s: DateSuggestion) => void
+  /** Ordered multi-pick (customer booking). The first entry is the preferred date. */
+  picks?: string[]
+  variant?: 'staff' | 'customer'
+}
+
+export function AvailabilityCalendar({ suggestions, selected, onPick, picks = [], variant = 'staff' }: Props) {
+  const customer = variant === 'customer'
+  const legend = customer ? CUSTOMER_LEGEND : LEGEND
   const byDate = useMemo(() => new Map(suggestions.map(s => [s.date, s])), [suggestions])
   const firstMonth = suggestions[0]?.date.slice(0, 7)
   const lastMonth = suggestions[suggestions.length - 1]?.date.slice(0, 7)
@@ -47,7 +66,7 @@ export function AvailabilityCalendar({ suggestions, selected, onPick }: { sugges
   const focusDate = hovered ?? selected
 
   return (
-    <div className="sd-wrap">
+    <div className={`sd-wrap${customer ? ' customer' : ''}`}>
       <div className="sd-cal">
         <div className="sd-head">
           <button type="button" className="icon-button" aria-label="Previous month" disabled={month <= firstMonth} onClick={() => setMonth(prev)}><ChevronLeft size={16} /></button>
@@ -61,8 +80,11 @@ export function AvailabilityCalendar({ suggestions, selected, onPick }: { sugges
             const s = byDate.get(date)
             const status = statusOf(s)
             const pickable = status === 'rec' || status === 'ok'
-            const isSel = selected === date
-            const label = `${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}, ${s ? (s.rating === 'Possible' ? 'available' : s.rating.toLowerCase()) : 'not offered'}`
+            const order = picks.indexOf(date)
+            const isSel = selected === date || order >= 0
+            const rated = s ? (s.rating === 'Possible' ? 'available' : customer && s.rating === 'Recommended' ? 'best fit' : s.rating.toLowerCase()) : 'not offered'
+            const pickText = order === 0 ? ', your preferred date' : order > 0 ? `, alternative ${order}` : ''
+            const label = `${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}, ${rated}${pickText}`
             return (
               <button
                 type="button"
@@ -79,21 +101,24 @@ export function AvailabilityCalendar({ suggestions, selected, onPick }: { sugges
                 onClick={() => { if (pickable && s) onPick(s) }}
               >
                 <span>{Number(date.slice(8))}</span>
-                {pickable && s?.time && <small>{s.time}</small>}
+                {!customer && pickable && s?.time && <small>{s.time}</small>}
+                {order >= 0 && <b className="sd-order" aria-hidden="true">{order === 0 ? 'Pref' : PICK_LABELS[order]}</b>}
               </button>
             )
           })}
         </div>
         <ul className="sd-legend" aria-label="Colour guide">
-          {LEGEND.map(l => <li key={l.cls} title={l.hint}><i className={`sd-swatch ${l.cls}`} />{l.label}</li>)}
+          {legend.map(l => <li key={l.cls} title={l.hint}><i className={`sd-swatch ${l.cls}`} />{l.label}</li>)}
           <li><i className="sd-swatch sel" />Selected</li>
         </ul>
       </div>
-      <p className="sd-detail" aria-live="polite">
-        {focus && focusDate
-          ? <><strong>{fmtDate(focusDate, { weekday: 'short', day: 'numeric', month: 'short' })}</strong> · {focus.rating === 'Possible' ? 'Available' : focus.rating}{focus.time && focus.rating !== 'Not available' ? ` at ${focus.time}` : ''}. <span className="muted">{focus.reason}</span></>
-          : <span className="muted">Hover or focus a date to see why it is rated that way, then click to book it.</span>}
-      </p>
+      {!customer && (
+        <p className="sd-detail" aria-live="polite">
+          {focus && focusDate
+            ? <><strong>{fmtDate(focusDate, { weekday: 'short', day: 'numeric', month: 'short' })}</strong> · {focus.rating === 'Possible' ? 'Available' : focus.rating}{focus.time && focus.rating !== 'Not available' ? ` at ${focus.time}` : ''}. <span className="muted">{focus.reason}</span></>
+            : <span className="muted">Hover or focus a date to see why it is rated that way, then click to book it.</span>}
+        </p>
+      )}
     </div>
   )
 }
