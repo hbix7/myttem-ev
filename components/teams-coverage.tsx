@@ -60,7 +60,7 @@ function TeamsTab() {
   return (
     <>
       <div className="block-head">
-        <p className="muted">The scheduler places jobs on active teams only. A technician belongs to one team at a time.</p>
+        <p className="muted">Every team with at least one member appears on the scheduler. A technician belongs to one team at a time.</p>
         <button className="button primary" onClick={() => setDraft({ name: '', colour: '#5b6b8c', active: true, memberIds: [] })}><Plus size={15} /> New team</button>
       </div>
       <div className="table-wrap">
@@ -68,13 +68,12 @@ function TeamsTab() {
           <thead><tr><th>Team</th><th>Members</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {teams.map(t => (
-              <tr key={t.id} className={t.active ? '' : 'row-muted'}>
+              <tr key={t.id} className={t.memberIds.length ? '' : 'row-muted'}>
                 <td><span className="team-name"><span className="swatch" style={{ background: t.colour }} aria-hidden />{t.name}</span></td>
                 <td>{t.memberIds.length ? t.memberIds.map(nameOf).join(', ') : <span className="muted">No members</span>}</td>
-                <td><StatusPill tone={t.active ? 'green' : 'grey'}>{t.active ? 'Active' : 'Inactive'}</StatusPill></td>
+                <td><StatusPill tone={t.memberIds.length ? 'green' : 'grey'}>{t.memberIds.length ? 'On scheduler' : 'Hidden, no members'}</StatusPill></td>
                 <td className="row-actions">
                   <button className="button secondary sm" onClick={() => setDraft({ id: t.id, name: t.name, colour: t.colour, active: t.active, memberIds: t.memberIds })}>Edit</button>
-                  <button className="button secondary sm" onClick={() => useOperationsStore.getState().updateTeam(t.id, { active: !t.active })}>{t.active ? 'Deactivate' : 'Activate'}</button>
                 </td>
               </tr>
             ))}
@@ -105,10 +104,6 @@ function TeamsTab() {
               })}
               {!technicians.length && <p className="muted">No active technicians. Add one under Settings, Users and roles.</p>}
             </fieldset>
-            <label className="flag-row span-2">
-              <input type="checkbox" checked={draft.active} onChange={e => setDraft({ ...draft, active: e.target.checked })} />
-              <span>Active on the scheduler</span>
-            </label>
           </div>
         )}
       </Modal>

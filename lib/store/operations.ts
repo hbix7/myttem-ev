@@ -73,7 +73,7 @@ const job=core.jobs.find(j=>j.id===installId)!
 const dates=[bookingOptions.preferred,...bookingOptions.options]
 if(dates.some(d=>!d)||new Set(dates).size!==4)return {ok:false,reason:'invalid',message:'Choose a preferred date and three different alternative dates.'}
 const env=envOf(get().teams,get().techAvailability)
-const team=get().teams.filter(t=>t.active).map(t=>({t,r:checkTeamPlacement(env,job,t,chosenDate,'10:00')})).sort((a,b)=>a.r.filter(isBlocking).length-b.r.filter(isBlocking).length)[0]?.t
+const team=get().teams.filter(t=>t.memberIds.length>0).map(t=>({t,r:checkTeamPlacement(env,job,t,chosenDate,'10:00')})).sort((a,b)=>a.r.filter(isBlocking).length-b.r.filter(isBlocking).length)[0]?.t
 if(!team)return {ok:false,reason:'unavailable',message:'No team is available. Please call us.'}
 const win=env.scheduling.windows[slotOf(job,core.jobTypes)]
 const time=win.start
