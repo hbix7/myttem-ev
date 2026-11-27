@@ -60,7 +60,9 @@ export default function BookingPage() {
   const installJob = env.jobs.find(j => j.id === parent?.ev?.installJobId)
   const today = todayMy(getNow())
   const days = useMemo(() => Array.from({ length: 21 }, (_, i) => addDays(today, i + 1)), [today])
-  const suggestions = useMemo(() => (installJob ? suggestDates(env, installJob, days, today) : []), [env, installJob, days, today])
+  // Travel distance is a scheduling concern for staff to review at confirmation; it must not hide dates from the customer.
+  const customerEnv = useMemo(() => ({ ...env, scheduling: { ...env.scheduling, travelAmberMax: Number.MAX_SAFE_INTEGER } }), [env])
+  const suggestions = useMemo(() => (installJob ? suggestDates(customerEnv, installJob, days, today) : []), [customerEnv, installJob, days, today])
   const byDate = useMemo(() => Object.fromEntries(suggestions.map(s => [s.date, s])), [suggestions])
 
   if (!hydrated) return null
