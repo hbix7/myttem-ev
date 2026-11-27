@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { Camera, Check } from 'lucide-react'
 import { AppShell, PageHeader, StatusPill, EmptyState, useHydrated } from '@/components/shared'
 import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
@@ -25,24 +26,58 @@ function AssessmentForm({ job }: { job: Job }) {
     const r = recordAssessment(job.id, { photos: photos.length, measurements, remarks, checklist: checks })
     r.ok ? toast.success(r.message) : toast.error(r.message)
   }
+  const checked = ASSESS_CHECKS.filter(c => checks[c]).length
+  const enoughPhotos = photos.length >= minPhotos
   return (
     <div className="ev-form">
-      <h3>Site assessment</h3>
-      <label>Photos (minimum {minPhotos})
-        <input className="field-input" type="file" accept="image/*" multiple onChange={e => setPhotos(Array.from(e.target.files || []).map(f => f.name))} />
+      <div className="ev-form-head">
+        <h3>Site assessment</h3>
+        <p className="muted">Add the photos, measurements and checklist, then submit to generate the Technical Assessment Form.</p>
+      </div>
+
+      <div className="ev-field">
+        <span className="ev-label">Site photos <em>At least {minPhotos} required</em></span>
+        <label className={`ev-upload${enoughPhotos ? ' ok' : ''}`}>
+          <input className="sr-only-text" type="file" accept="image/*" multiple onChange={e => setPhotos(Array.from(e.target.files || []).map(f => f.name))} />
+          <Camera size={18} aria-hidden="true" />
+          <span className="ev-upload-text">
+            <strong>{photos.length ? 'Replace photos' : 'Choose photos'}</strong>
+            <small>{photos.length ? `${photos.length} of ${minPhotos} required attached` : `${minPhotos} photos required, none attached yet`}</small>
+          </span>
+        </label>
+        {photos.length > 0 && (
+          <ul className="ev-files" aria-label="Attached photos">
+            {photos.slice(0, 8).map(n => <li key={n}>{n}</li>)}
+            {photos.length > 8 && <li>+{photos.length - 8} more</li>}
+          </ul>
+        )}
+      </div>
+
+      <label className="ev-field">
+        <span className="ev-label">Cable route and distance <em>Optional</em></span>
+        <textarea className="field-input" rows={3} value={measurements} onChange={e => setMeasurements(e.target.value)} placeholder="e.g. DB to bay 18 m, surface trunking, one wall penetration" />
       </label>
-      <p className="muted">{photos.length} attached</p>
-      <label>Cable route and distance measurements
-        <textarea className="field-input" value={measurements} onChange={e => setMeasurements(e.target.value)} placeholder="e.g. DB to bay 18 m, surface trunking, one wall penetration" />
-      </label>
-      <fieldset>
-        <legend>Checklist</legend>
+
+      <fieldset className="ev-checklist">
+        <legend>Checklist <span>{checked} of {ASSESS_CHECKS.length} done</span></legend>
+        <div className="ev-progress" aria-hidden="true"><span style={{ width: `${(checked / ASSESS_CHECKS.length) * 100}%` }} /></div>
         {ASSESS_CHECKS.map(c => (
-          <label key={c} className="check-row"><input type="checkbox" checked={checks[c]} onChange={e => setChecks(s => ({ ...s, [c]: e.target.checked }))} /> {c}</label>
+          <label key={c} className="ev-check">
+            <input type="checkbox" checked={checks[c]} onChange={e => setChecks(s => ({ ...s, [c]: e.target.checked }))} />
+            <span>{c}</span>
+          </label>
         ))}
       </fieldset>
-      <label>Remarks<textarea className="field-input" value={remarks} onChange={e => setRemarks(e.target.value)} /></label>
-      <button className="button primary" onClick={submit}>Submit assessment and generate TAF</button>
+
+      <label className="ev-field">
+        <span className="ev-label">Remarks <em>Optional</em></span>
+        <textarea className="field-input" rows={3} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Anything the office should know before quoting" />
+      </label>
+
+      <div className="ev-actions">
+        <button className="button primary" onClick={submit}>Submit assessment and generate TAF</button>
+        {!enoughPhotos && <small className="muted">{minPhotos - photos.length} more photo(s) needed before you can submit.</small>}
+      </div>
     </div>
   )
 }
@@ -57,11 +92,16 @@ function PaymentForm({ job, total }: { job: Job; total: number }) {
   }
   return (
     <div className="ev-form">
-      <h3>Record payment</h3>
-      <label>Amount received (RM)<input className="field-input" type="number" min={0} value={amount} onChange={e => setAmount(e.target.value)} /></label>
-      <label>Date received<input className="field-input" type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
-      <label>Payment reference<input className="field-input" value={ref} onChange={e => setRef(e.target.value)} placeholder="Bank transfer reference" /></label>
-      <button className="button primary" onClick={submit}>Confirm payment and send booking link</button>
+      <div className="ev-form-head">
+        <h3>Record payment</h3>
+        <p className="muted">Confirming payment sends the customer a link to choose their installation slot.</p>
+      </div>
+      <div className="ev-grid">
+        <label className="ev-field"><span className="ev-label">Amount received (RM)</span><input className="field-input" type="number" min={0} value={amount} onChange={e => setAmount(e.target.value)} /></label>
+        <label className="ev-field"><span className="ev-label">Date received</span><input className="field-input" type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+        <label className="ev-field ev-span"><span className="ev-label">Payment reference <em>Optional</em></span><input className="field-input" value={ref} onChange={e => setRef(e.target.value)} placeholder="Bank transfer reference" /></label>
+      </div>
+      <div className="ev-actions"><button className="button primary" onClick={submit}>Confirm payment and send booking link</button></div>
     </div>
   )
 }
@@ -93,7 +133,15 @@ export function EvWorkflowPanel({ job }: { job: Job }) {
         <StatusPill>{ev.status === 'Lost' ? 'Lost' : nextAction(job)}</StatusPill>
       </div>
       <ol className="ev-stages">
-        {EV_STAGES.map((s, i) => <li key={s} className={ev.status === 'Lost' ? '' : i < stageIdx ? 'done' : i === stageIdx ? 'current' : ''} aria-current={i === stageIdx ? 'step' : undefined}>{s}</li>)}
+        {EV_STAGES.map((s, i) => {
+          const state = ev.status === 'Lost' ? '' : i < stageIdx ? 'done' : i === stageIdx ? 'current' : ''
+          return (
+            <li key={s} className={state} aria-current={state === 'current' ? 'step' : undefined}>
+              <span className="ev-dot" aria-hidden="true">{state === 'done' ? <Check size={12} strokeWidth={3} /> : i + 1}</span>
+              <span className="ev-stage-name">{s}</span>
+            </li>
+          )
+        })}
       </ol>
 
       {ev.callTask && <div className="notice">No reply to the quotation. Call the customer, then record their decision.</div>}

@@ -53,8 +53,8 @@ function DateTimeField({ value, onSave, label }: { value?: string; onSave: (v?: 
 
 function Field({ label, wide, done, children }: { label: string; wide?: boolean; done: boolean; children: React.ReactNode }) {
   return (
-    <div className={`tk-field${wide ? ' wide' : ''}`}>
-      <span className="tk-label">{label}{!done && <i className="tk-missing" aria-label="Missing">Missing</i>}</span>
+    <div className={`tk-field${wide ? ' wide' : ''}`} data-done={done}>
+      <span className="tk-label">{label}{!done && <i className="tk-missing">Missing</i>}</span>
       {children}
     </div>
   )
@@ -73,6 +73,7 @@ export function TrackerDetailsCard({ job }: { job: Job }) {
   const createQuote = useCommercialStore(s => s.createQuote)
   const createInvoice = useCommercialStore(s => s.createInvoice)
   useOutstandingSweep()
+  const [missingOnly, setMissingOnly] = useState(false)
 
   const r = useMemo(() => buildTrackerRows([job], customers, sites, quotations, invoices)[0], [job, customers, sites, quotations, invoices])
   if (!r || !job.ev || (role !== 'admin' && role !== 'owner' && role !== 'sysadmin')) return null
@@ -99,18 +100,32 @@ export function TrackerDetailsCard({ job }: { job: Job }) {
 
   return (
     <section className="card jd-card" aria-label="Installation tracker details">
-      <header className="jd-card-head">
-        <h2>Tracker details</h2>
-        <p>{filled} of {checks.length} fields filled. Every field is editable and saves when you leave it. Fields can stay empty.</p>
+      <header className="jd-card-head tk-head">
+        <div className="tk-head-top">
+          <div>
+            <h2>Tracker details</h2>
+            <p>Changes save automatically when you leave a field. Empty fields are fine.</p>
+          </div>
+          <label className="tk-toggle">
+            <input type="checkbox" checked={missingOnly} onChange={e => setMissingOnly(e.target.checked)} />
+            Show missing only
+          </label>
+        </div>
+        <div className="tk-progress">
+          <div className="tk-bar" role="progressbar" aria-valuemin={0} aria-valuemax={checks.length} aria-valuenow={filled} aria-label="Tracker fields filled"><span style={{ width: `${(filled / checks.length) * 100}%` }} /></div>
+          <span>{filled} of {checks.length} filled</span>
+        </div>
       </header>
-      <div className="jd-card-body tk-sections">
+      <div className={`jd-card-body tk-sections${missingOnly ? ' tk-only-missing' : ''}`}>
         <div className="tk-meta">
           <span className={`tk-badge tk-p-${r.principal}`}>{PRINCIPAL_NAMES[r.principal]}</span>
           {ev.revisionLabel && <span className="tk-badge tk-rev">{ev.revisionLabel}</span>}
           {ev.caseFlag && ev.caseFlag !== 'Active' && <span className="tk-badge tk-flag">{ev.caseFlag}</span>}
           {ev.legacy && <span className="tk-badge tk-legacy">Legacy</span>}
         </div>
+        {missingOnly && filled === checks.length && <p className="tk-allset">Every tracker field is filled in.</p>}
 
+        <section className="tk-section">
         <h3 className="tk-group">Customer and site</h3>
         <div className="tk-grid">
           <Field label="Contact number" done={!!r.contact}><TextField label="Contact number" value={r.contact} onSave={v => updateJob(job.id, { contactPhone: v || undefined })} /></Field>
@@ -120,7 +135,9 @@ export function TrackerDetailsCard({ job }: { job: Job }) {
             <TextField multiline label="Location" value={r.site?.address || job.contactAddress || ''} onSave={v => (r.site ? updateSite(r.site.id, { address: v }) : updateJob(job.id, { contactAddress: v || undefined }))} />
           </Field>
         </div>
+        </section>
 
+        <section className="tk-section">
         <h3 className="tk-group">Inspection and quotation</h3>
         <div className="tk-grid">
           <Field label="Inspection proposed" done={!!ev.inspectionProposed}><DateTimeField label="Inspection proposed" value={ev.inspectionProposed} onSave={v => patchEv({ inspectionProposed: v })} /></Field>
@@ -131,14 +148,18 @@ export function TrackerDetailsCard({ job }: { job: Job }) {
           </Field>
           <Field label="Quotation submitted" done={!!r.quote?.submittedOn}><DateTimeField label="Quotation submitted" value={r.quote?.submittedOn} onSave={v => saveQuote({ submittedOn: v })} /></Field>
         </div>
+        </section>
 
+        <section className="tk-section">
         <h3 className="tk-group">Purchase order and installation</h3>
         <div className="tk-grid">
           <Field label="PO status" done={!!ev.poStatus}><PillSelect label="PO status" value={ev.poStatus} options={PO} onChange={v => patchEv({ poStatus: v })} /></Field>
           <Field label="PO number" done={!!ev.poNumber}><TextField label="PO number" value={ev.poNumber || ''} onSave={v => patchEv({ poNumber: v || undefined })} /></Field>
           <Field label="Installation date" done={!!ev.installationDate}><DateTimeField label="Installation date" value={ev.installationDate} onSave={v => patchEv({ installationDate: v })} /></Field>
         </div>
+        </section>
 
+        <section className="tk-section">
         <h3 className="tk-group">Invoice and payment</h3>
         <div className="tk-grid">
           <Field label="SQL invoice no." done={!!inv?.sqlInvoiceNo}><TextField label="SQL invoice no." value={inv?.sqlInvoiceNo || ''} onSave={v => saveInvoice({ sqlInvoiceNo: v || undefined })} /></Field>
@@ -146,9 +167,12 @@ export function TrackerDetailsCard({ job }: { job: Job }) {
           <Field label="Invoice submission" done={!!inv?.submissionStatus}><PillSelect label="Invoice submission" value={inv?.submissionStatus} options={SUBMISSION} onChange={v => saveInvoice({ submissionStatus: v })} /></Field>
           <Field label="Payment" done={!!inv?.paymentStatus}><PillSelect label="Payment" value={inv?.paymentStatus} options={PAYMENT} onChange={v => saveInvoice({ paymentStatus: v })} /></Field>
         </div>
+        </section>
 
+        <section className="tk-section">
         <h3 className="tk-group">Notes</h3>
         <Field label="Notes" wide done={!!ev.notes}><TextField multiline label="Notes" value={ev.notes || ''} onSave={v => patchEv({ notes: v || undefined })} /></Field>
+        </section>
       </div>
     </section>
   )
