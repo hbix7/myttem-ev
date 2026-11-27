@@ -121,10 +121,14 @@ export function createEvJob(input: NewEvInput) {
     useStore.setState(st => ({ customers: [...st.customers, customer!], sites: [...st.sites, { id: newSiteId, tenant_id: 't-upe', customerId: customer!.id, name: 'Home site', address: input.address, postcode: where.postcode, area: where.area, lat: where.lat, lng: where.lng }] }))
   }
   const jobId = s.createJob({ subject: input.subject || `EV Assessment: ${input.vehicle || 'new lead'}`, customerId: customer.id, siteId, jobTypeId: 'jt3', channel: input.channel || 'Manual', principalId: input.principalId, remarks: input.remarks })
-  core().updateJob(jobId, { ev: { status: 'Lead', at: { ack: nowIso() }, vehicle: input.vehicle, chargerModel: input.chargerModel, followUps: 0 } })
+  openEvCase(jobId, { vehicle: input.vehicle, chargerModel: input.chargerModel })
+  return jobId
+}
+
+export function openEvCase(jobId: string, details: { vehicle?: string; chargerModel?: string } = {}) {
+  core().updateJob(jobId, { ev: { status: 'Lead', at: { ack: nowIso() }, vehicle: details.vehicle?.trim() || undefined, chargerModel: details.chargerModel?.trim() || undefined, followUps: 0 } })
   note(jobId, 'Lead acknowledged', 'EV case opened')
   email(jobId, 'We have received your EV charger enquiry', 'Lead acknowledgement')
-  return jobId
 }
 
 export function acknowledgeLead(jobId: string) {
