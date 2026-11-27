@@ -92,14 +92,14 @@ export function VocabularyScreen() {
   const patchType = (id: string, patch: object) => useStore.setState(s => ({ jobTypes: s.jobTypes.map(t => t.id === id ? { ...t, ...patch } : t) }))
   const add = () => {
     const v = draft.trim()
-    if (!v) return
+    if (!v) return toast.error('Enter a value to add')
     if (list.some(x => x.value.toLowerCase() === v.toLowerCase())) return toast.error('That value already exists')
     if (tab === 'jobType') useStore.setState(s => ({ jobTypes: [...s.jobTypes, { id: crypto.randomUUID(), tenant_id: TENANT, active: true, code: v.slice(0, 3).toUpperCase(), name: v, isEv: false, slaHours: 48, warnPct: 0.8 }] }))
     else addVocab(tab, v)
     setDraft(''); toast.success('Value added')
   }
   const saveEdit = (id: string) => {
-    const v = editVal.trim(); if (!v) return
+    const v = editVal.trim(); if (!v) return toast.error('Value cannot be empty')
     if (tab === 'jobType') patchType(id, { name: v }); else updateVocab(id, { value: v })
     setEditId(null); toast.success('Value updated')
   }
