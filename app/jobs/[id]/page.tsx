@@ -7,7 +7,7 @@ import { AppShell, EmptyState, PageHeader, StatusPill, useHydrated } from '@/com
 import { useStore } from '@/lib/store'
 import { useCommercialStore } from '@/lib/store/commercial'
 import { Price } from '@/components/commercial'
-import { EvWorkflowPanel } from '@/components/ev-pipeline'
+import { EvStageStepper, EvWorkflowPanel } from '@/components/ev-pipeline'
 import { TrackerDetailsCard } from '@/components/job/tracker-details'
 import { jobTabs } from '@/components/job/tabs'
 import { getNow } from '@/lib/clock'
@@ -118,18 +118,20 @@ export default function JobDetail() {
             </div>
             <span className={`jd-sla-text ${state}`}>SLA <b>{sla.label}</b></span>
           </div>
-          <ol className="jd-steps" aria-label="Job progress">
-            {progress.map((p, i) => {
-              const done = stepIndex > i
-              const now = stepIndex === i
-              return (
-                <li key={p} className={`jd-step ${done ? 'done' : ''} ${now ? 'now' : ''}`} aria-current={now ? 'step' : undefined}>
-                  <span className="jd-dot">{done ? <Check size={14} aria-hidden /> : i + 1}</span>
-                  <small>{now && p === 'In Progress' && job.holdSince ? 'On hold' : p}</small>
-                </li>
-              )
-            })}
-          </ol>
+          {job.ev ? <EvStageStepper job={job} /> : (
+            <ol className="jd-steps" aria-label="Job progress">
+              {progress.map((p, i) => {
+                const done = stepIndex > i
+                const now = stepIndex === i
+                return (
+                  <li key={p} className={`jd-step ${done ? 'done' : ''} ${now ? 'now' : ''}`} aria-current={now ? 'step' : undefined}>
+                    <span className="jd-dot">{done ? <Check size={14} aria-hidden /> : i + 1}</span>
+                    <small>{now && p === 'In Progress' && job.holdSince ? 'On hold' : p}</small>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
         </section>
 
         <div className="jd-grid">

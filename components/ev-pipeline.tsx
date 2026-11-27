@@ -106,6 +106,25 @@ function PaymentForm({ job, total }: { job: Job; total: number }) {
   )
 }
 
+export function EvStageStepper({ job }: { job: Job }) {
+  const ev = job.ev
+  if (!ev) return null
+  const stageIdx = ev.status === 'Follow-up' ? EV_STAGES.indexOf('Quoted') : EV_STAGES.indexOf(ev.status)
+  return (
+    <ol className="ev-stages" aria-label="EV workflow progress">
+      {EV_STAGES.map((s, i) => {
+        const state = ev.status === 'Lost' ? '' : i < stageIdx ? 'done' : i === stageIdx ? 'current' : ''
+        return (
+          <li key={s} className={state} aria-current={state === 'current' ? 'step' : undefined}>
+            <span className="ev-dot" aria-hidden="true">{state === 'done' ? <Check size={12} strokeWidth={3} /> : i + 1}</span>
+            <span className="ev-stage-name">{s}</span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 export function EvWorkflowPanel({ job }: { job: Job }) {
   const ev = job.ev
   const settings = useStore(s => s.settings)
@@ -117,7 +136,6 @@ export function EvWorkflowPanel({ job }: { job: Job }) {
   if (!ev) return null
   const staff = role === 'admin' || role === 'owner' || role === 'technician'
   const admin = role === 'admin'
-  const stageIdx = ev.status === 'Follow-up' ? EV_STAGES.indexOf('Quoted') : EV_STAGES.indexOf(ev.status)
   const deadlines = isChargeSini(job) ? evDeadlines(job, settings) : []
   const docs = documents.filter(d => d.jobId === job.id && ['Technical Assessment Form', 'Installation Report'].includes(d.docType))
   const install = jobs.find(j => j.id === ev.installJobId)
@@ -132,18 +150,6 @@ export function EvWorkflowPanel({ job }: { job: Job }) {
         <h2>EV workflow</h2>
         <StatusPill>{ev.status === 'Lost' ? 'Lost' : nextAction(job)}</StatusPill>
       </div>
-      <ol className="ev-stages">
-        {EV_STAGES.map((s, i) => {
-          const state = ev.status === 'Lost' ? '' : i < stageIdx ? 'done' : i === stageIdx ? 'current' : ''
-          return (
-            <li key={s} className={state} aria-current={state === 'current' ? 'step' : undefined}>
-              <span className="ev-dot" aria-hidden="true">{state === 'done' ? <Check size={12} strokeWidth={3} /> : i + 1}</span>
-              <span className="ev-stage-name">{s}</span>
-            </li>
-          )
-        })}
-      </ol>
-
       {ev.callTask && <div className="notice">No reply to the quotation. Call the customer, then record their decision.</div>}
 
       {ev.status === 'Lead' && !ev.at.ack && admin && <button className="button primary" onClick={() => { acknowledgeLead(job.id); toast.success('Lead acknowledged') }}>Acknowledge lead</button>}
