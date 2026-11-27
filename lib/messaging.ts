@@ -17,6 +17,7 @@ export function channelHealth(): ChannelHealth {
 
 /** Plans the message for an event, records it in the job's message log and returns what was sent. */
 export function dispatch(jobId: string, event: string, subject: string = event): NotificationResult {
+  if (useStore.getState().jobs.find(j => j.id === jobId)?.ev?.legacy) return { notifications: [], toast: 'Legacy tracker row: no message sent' }
   const { consumedFailure, ...result } = planNotification(jobId, event, subject, channelHealth())
   if (consumedFailure) useWhatsAppStore.getState().armDeliveryFailure(false)
   useStore.setState(s => ({ notifications: [...s.notifications, ...result.notifications] }))

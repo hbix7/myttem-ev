@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { AppShell, EmptyState, FilterBar, PageHeader, StatusPill, useHydrated } from '@/components/shared'
 import { Price } from '@/components/commercial'
 import { useStore } from '@/lib/store'
-import { useCommercialStore, type Invoice, type InvoiceStatus } from '@/lib/store/commercial'
+import { useCommercialStore, type Invoice, type InvoiceStatus, type SubmissionStatus, type PaymentStatus } from '@/lib/store/commercial'
 import { dispatch } from '@/lib/messaging'
 import { can } from '@/lib/rbac'
 import { E_INVOICE_NOTE } from '@/lib/invoicing'
@@ -29,7 +29,7 @@ export function InvoiceList() {
   const role = useStore(s => s.users.find(u => u.id === s.currentUserId)!.role)
   const [tab, setTab] = useState<(typeof tabs)[number]>('All')
   const [search, setSearch] = useState('')
-  const rows = useMemo(() => invoices.filter(i => (tab === 'All' || i.status === tab) && `${i.invoiceNo} ${i.jobNo} ${i.customer}`.toLowerCase().includes(search.toLowerCase())), [invoices, tab, search])
+  const rows = useMemo(() => invoices.filter(i => (tab === 'All' || i.status === tab) && `${i.invoiceNo} ${i.sqlInvoiceNo ?? ''} ${i.jobNo} ${i.customer}`.toLowerCase().includes(search.toLowerCase())), [invoices, tab, search])
   if (!hydrated) return null
   return (
     <AppShell crumb="Invoices">
@@ -39,14 +39,16 @@ export function InvoiceList() {
         <FilterBar search={search} onSearch={setSearch} placeholder="Search invoice, job or customer..." />
         <div className="table-card">
           <table>
-            <thead><tr><th>Invoice</th><th>Job</th><th>Customer</th><th>Total (incl. SST)</th><th>Status</th><th>SQL Accounting</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Job</th><th>Customer</th><th>Total (incl. SST)</th><th>SQL invoice no.</th><th>Status</th><th>Payment</th><th>SQL Accounting</th></tr></thead>
             <tbody>
               {rows.map(i => (
                 <tr key={i.id}>
                   <td><Link href={`/invoices/${i.id}`} className="link mono">{i.invoiceNo}</Link></td>
                   <td>{i.jobNo}</td><td>{i.customer}</td>
                   <td><Price amount={i.total} /></td>
+                  <td className="mono">{i.sqlInvoiceNo || <span className="muted">-</span>}</td>
                   <td><StatusPill>{i.status}</StatusPill></td>
+                  <td>{i.paymentStatus ? <StatusPill>{i.paymentStatus}</StatusPill> : <span className="muted">-</span>}</td>
                   <td><ExportChip invoice={i} /></td>
                 </tr>
               ))}
@@ -163,6 +165,22 @@ export function InvoiceDetail({ id }: { id: string }) {
               {canEdit && invoice.status === 'Signed off' && <button className="button primary full" onClick={confirmPayment}><Wallet size={15} />Confirm payment received</button>}
               {invoice.status === 'Paid' && !invoice.exportBatchId && <Link className="button secondary full" href="/integrations/sql"><FileText size={15} />Go to SQL export</Link>}
               {!canEdit && <p className="muted">View only for your role.</p>}
+            </div>
+            <h2>Tracking</h2>
+            <div className="stack">
+              <label>SQL invoice no.<input disabled={!canEdit} defaultValue={invoice.sqlInvoiceNo ?? ''} placeholder="INV 0000" onBlur={e => e.target.value.trim() !== (invoice.sqlInvoiceNo ?? '') && update(invoice.id, { sqlInvoiceNo: e.target.value.trim() || undefined })} /></label>
+              <label>Submission status
+                <select disabled={!canEdit} value={invoice.submissionStatus ?? 'Not submitted'} onChange={e => update(invoice.id, { submissionStatus: e.target.value as SubmissionStatus })}>
+                  {['Not submitted', 'Submitted', 'Cancelled'].map(o => <option key={o}>{o}</option>)}
+                </select>
+              </label>
+              <label>Submitted on<input type="date" disabled={!canEdit} value={invoice.submittedOn?.slice(0, 10) ?? ''} onChange={e => update(invoice.id, { submittedOn: e.target.value || undefined })} /></label>
+              <label>Payment status
+                <select disabled={!canEdit} value={invoice.paymentStatus ?? 'Pending'} onChange={e => update(invoice.id, { paymentStatus: e.target.value as PaymentStatus })}>
+                  {['Pending', 'Outstanding', 'Received'].map(o => <option key={o}>{o}</option>)}
+                </select>
+              </label>
+              <label>Paid on<input type="date" disabled={!canEdit} value={invoice.paidOn?.slice(0, 10) ?? ''} onChange={e => update(invoice.id, { paidOn: e.target.value || undefined })} /></label>
             </div>
           </aside>
         </div>
